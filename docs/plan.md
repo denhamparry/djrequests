@@ -77,3 +77,48 @@
 - What branding/assets (logo, color palette) should guide the UI once we enter the design phase?
 - Any reporting requirements beyond the Google Doc playlist?
 - Should we document a GitHub Pages deployment path now or only if Netlify free tier proves unreliable?
+
+## Implementation Recommendations (TDD Focus)
+
+- Adopt `vitest` + `testing-library/react` for unit/UI tests, `msw` for mocking the iTunes API, and `playwright` (or `cypress`) for end-to-end verification once the flow connects to Google Form staging URLs.
+- Configure Git hooks (`npm run test:unit`, `npm run lint`, `npm run format`) within `pre-commit` to enforce red-green-refactor on every slice.
+- Maintain a `docs/test-cases.md` log capturing failing tests written first, the minimal code added, and follow-up refactors; helps evidence TDD for this one-day build.
+
+### Slice 1: Search Function Proxy
+
+- **Red:** Write unit tests for a Netlify function `search.ts` that, given a term, returns normalized song objects and handles empty responses and API throttle errors.
+- **Green:** Implement minimal fetch logic with query encoding and rate-limit guard; ensure 429 responses surface a friendly message.
+- **Refactor:** Introduce caching headers, split normalization into pure helpers with dedicated unit tests.
+
+### Slice 2: Frontend Search State
+
+- **Red:** Component tests for `SearchBar` and `ResultsList` asserting debounce timing, loading states, and error banners (mocking API hook).
+- **Green:** Implement React context or hook (`useSongSearch`) calling the Netlify endpoint; keep state minimal (query, status, results).
+- **Refactor:** Extract presentational components, ensure accessibility (ARIA roles) and add snapshot/DOM assertions for mobile breakpoints.
+
+### Slice 3: Request Flow Integration
+
+- **Red:** Integration test covering click on “Request” button populating Google Form URL with hidden fields and verifying the correct querystring.
+- **Green:** Build request modal that either embeds the Form or opens a new tab; ensure metadata is URL-encoded.
+- **Refactor:** Abstract form field mapping into configuration to simplify future provider switches.
+
+### Slice 4: Google Workspace Automation
+
+- **Red:** Apps Script unit-style tests (using clasp + `typescript` definitions or manual assertions) verifying new submissions append formatted sections to the Google Doc.
+- **Green:** Implement minimal script triggered on Form submit; confirm idempotency when rerun.
+- **Refactor:** Add status toggling helper and optional email notification stub.
+
+### Slice 5: E2E Smoke Test
+
+- **Red:** Playwright spec that searches for a known track (mocked via msw) and ensures the request CTA opens the prefilled Form stub URL.
+- **Green:** Wire msw to serve canned API responses during tests; deploy to Netlify preview and run the same smoke test against the live URL.
+- **Refactor:** Parameterize base URLs and isolate Google Form interactions behind feature flag for offline testing.
+
+## Implementation Checklist
+
+- [ ] Scaffold build tooling (`pnpm create next-app` or Vite React), add ESLint/Prettier configs, and wire Vitest + Testing Library before writing production code.
+- [ ] Configure MSW handlers for the iTunes API endpoints and integrate into both Vitest and Playwright setups.
+- [ ] Stand up Netlify dev environment (`netlify dev`) and ensure serverless function tests run locally.
+- [ ] Prototype Google Form with required fields; document prefill parameter mappings.
+- [ ] Set up `clasp` (Apps Script CLI) or manual script deployment; capture instructions in `docs/setup.md`.
+- [ ] Automate CI to run unit, integration, and e2e suites on pull requests; require green builds prior to merge.
