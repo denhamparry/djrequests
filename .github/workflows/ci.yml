@@ -1,0 +1,62 @@
+# Continuous Integration Workflow
+# Customize this template for your project's specific needs
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Uncomment and customize based on your project type
+
+  # lint:
+  #   name: Lint
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Run linter
+  #       run: |
+  #         # Add your lint command here
+  #         # Examples:
+  #         # npm run lint
+  #         # golangci-lint run
+  #         # pylint src/
+  #         echo "Configure linting for your project"
+
+  # test:
+  #   name: Test
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Run tests
+  #       run: |
+  #         # Add your test command here
+  #         # Examples:
+  #         # npm test
+  #         # go test ./...
+  #         # pytest
+  #         echo "Configure testing for your project"
+
+  # build:
+  #   name: Build
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Build project
+  #       run: |
+  #         # Add your build command here
+  #         # Examples:
+  #         # npm run build
+  #         # go build
+  #         # python setup.py build
+  #         echo "Configure build for your project"
+
+  placeholder:
+    name: CI Placeholder
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder
+        run: echo "Customize this CI workflow for your project. See comments in .github/workflows/ci.yml"

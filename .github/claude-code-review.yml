@@ -1,0 +1,78 @@
+# Claude Code PR Review Configuration
+# This file configures automated PR reviews using Claude Code
+# Requires GitHub App installation: run `/install-github-app` in Claude Code
+
+# Main review prompt - customize based on your project needs
+direct_prompt: |
+  Review this pull request for the following:
+
+  ## Code Quality
+  - Does code follow style guidelines in CLAUDE.md?
+  - Are variable and function names clear and meaningful?
+  - Is code properly organized and modular?
+
+  ## Test-Driven Development
+  - Were tests written before implementation? (Check git history)
+  - Do tests adequately cover new functionality?
+  - Are tests meaningful and not just for coverage?
+  - Does test coverage meet >80% requirement?
+
+  ## Bugs & Logic
+  - Are there any logical errors or edge cases not handled?
+  - Could any code cause runtime errors or crashes?
+  - Are error cases handled appropriately?
+
+  ## Security
+  - Are there potential security vulnerabilities?
+  - Is input properly validated?
+  - Are credentials or secrets exposed?
+  - Are dependencies safe and up-to-date?
+
+  ## Performance
+  - Are there obvious performance issues?
+  - Could any operations cause bottlenecks?
+  - Are resources properly cleaned up?
+
+  ## Documentation
+  - Is CLAUDE.md updated if patterns changed?
+  - Are complex logic blocks commented?
+  - Is the PR description clear about what and why?
+
+  ## Output Format
+  Be concise and specific. Focus on actual problems, not style preferences.
+  Use this format:
+  - ✅ **Approved**: If no issues found
+  - ⚠️ **Warnings**: Minor improvements (non-blocking)
+  - ❌ **Issues**: Critical problems (blocking merge)
+
+  Include file paths and line numbers for all feedback.
+
+# Optional: Filters for when to trigger reviews
+# Uncomment and customize as needed
+
+# paths:
+#   include:
+#     - "src/**"
+#     - "lib/**"
+#   exclude:
+#     - "*.md"
+#     - "docs/**"
+#     - "*.json"
+
+# Optional: Specific instructions for file types
+# file_type_instructions:
+#   typescript:
+#     - Check for proper type definitions
+#     - Verify no 'any' types used
+#   python:
+#     - Verify type hints are present
+#     - Check PEP 8 compliance
+#   go:
+#     - Check error handling patterns
+#     - Verify proper context usage
+
+# Optional: Skip review conditions
+# skip_if:
+#   - pr_author: "dependabot[bot]"
+#   - pr_title_contains: "[skip review]"
+#   - files_changed_less_than: 5
