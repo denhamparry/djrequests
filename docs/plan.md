@@ -1,302 +1,68 @@
-# GitHub Template Repository - Missing Items Plan
+# DJ Song Request Website Plan
 
 **Status:** Draft
-**Created:** 2025-10-02
-**Purpose:** Identify and track missing items that should be included in a complete GitHub template repository
-
-## Critical Missing Items
-
-### 1. .gitignore
-
-**Priority:** High
-**Reason:** Essential for preventing committing unwanted files (dependencies, build artifacts, IDE configs, secrets)
-
-**Action:**
-
-- Create language-agnostic `.gitignore` with common patterns
-- Include sections for: OS files, IDE configs, build outputs, dependencies, environment files
-- Consider using GitHub's template gitignore files as reference
-
-### 2. LICENSE
-
-**Priority:** High
-**Reason:** Defines legal terms for using/distributing the code. Required for open source projects.
-
-**Action:**
-
-- Add LICENSE file (suggest MIT, Apache 2.0, or GPL based on intended use)
-- Include copyright year placeholder and author name placeholder
-- Document in README how to choose appropriate license
-
-### 3. .github/ISSUE_TEMPLATE/
-
-**Priority:** High
-**Reason:** Standardizes issue reporting, improves issue quality and triage
-
-**Action:**
-
-- Create templates for:
-  - `bug_report.md` - Bug reports with reproduction steps
-  - `feature_request.md` - Feature proposals
-  - `config.yml` - Template chooser configuration
-- Include relevant sections: description, environment, reproduction, expected behavior
-
-### 4. .github/PULL_REQUEST_TEMPLATE.md
-
-**Priority:** High
-**Reason:** Ensures PRs include necessary information for review
-
-**Action:**
-
-- Create PR template with sections:
-  - Description/Summary
-  - Type of change (bugfix, feature, docs, etc.)
-  - Checklist (tests added, docs updated, TDD followed)
-  - Related issues
-  - Screenshots (if applicable)
-
-## Important Missing Items
-
-### 5. .github/workflows/
-
-**Priority:** Medium-High
-**Reason:** Automate CI/CD, testing, linting, security scanning
-
-**Action:**
-
-- Create starter workflows:
-  - `ci.yml` - Basic CI template (lint, test, build)
-  - `release.yml` - Release automation template
-  - `security.yml` - Dependency scanning (Dependabot, CodeQL)
-- Make workflows generic/commented for customization
-
-### 6. CONTRIBUTING.md
-
-**Priority:** Medium
-**Reason:** Guides contributors on how to participate in the project
-
-**Action:**
-
-- Document contribution process:
-  - How to set up development environment
-  - How to run tests
-  - Code style requirements
-  - PR submission process
-  - TDD expectations
-- Link to CODE_OF_CONDUCT.md
-
-### 7. CODE_OF_CONDUCT.md
-
-**Priority:** Medium
-**Reason:** Sets expectations for community behavior
-
-**Action:**
-
-- Add Contributor Covenant or similar
-- Customize contact information section
-- Include enforcement guidelines
-
-### 8. SECURITY.md
-
-**Priority:** Medium
-**Reason:** Provides security vulnerability reporting instructions
-
-**Action:**
-
-- Define security policy
-- Specify supported versions
-- Provide reporting contact/process
-- Outline disclosure timeline
-
-### 9. CHANGELOG.md
-
-**Priority:** Medium
-**Reason:** Documents version history and notable changes
-
-**Action:**
-
-- Create template following Keep a Changelog format
-- Include sections: Added, Changed, Deprecated, Removed, Fixed, Security
-- Add example entries
-- Link from README
-
-## Nice-to-Have Items
-
-### 10. .github/CODEOWNERS
-
-**Priority:** Low-Medium
-**Reason:** Automatically assigns reviewers based on code ownership
-
-**Action:**
-
-- Create example CODEOWNERS file
-- Document syntax and usage
-- Provide patterns for common directory structures
-
-### 11. .github/FUNDING.yml
-
-**Priority:** Low
-**Reason:** Enables sponsorship/funding options
-
-**Action:**
-
-- Create template with commented examples
-- Support GitHub Sponsors, Patreon, etc.
-- Make easy to customize or remove
-
-### 12. .gitattributes
-
-**Priority:** Low-Medium
-**Reason:** Ensures consistent line endings and file handling across platforms
-
-**Action:**
-
-- Add sensible defaults for text files
-- Configure LFS patterns (if needed)
-- Set merge strategies for specific files
-
-### 13. .env.example
-
-**Priority:** Low-Medium
-**Reason:** Documents required environment variables without exposing secrets
-
-**Action:**
-
-- Create template with common patterns
-- Document each variable's purpose
-- Include setup instructions in README
-
-### 14. docs/ Structure
-
-**Priority:** Low
-**Reason:** Organized documentation improves discoverability
-
-**Action:**
-
-- Create suggested docs structure:
-  - `docs/architecture.md` - System design
-  - `docs/api.md` - API documentation
-  - `docs/deployment.md` - Deployment guide
-  - `docs/troubleshooting.md` - Common issues
-- Keep as optional templates
-
-### 15. tests/ or test/ Directory
-
-**Priority:** Low
-**Reason:** Establish testing structure early
-
-**Action:**
-
-- Create example test directory structure
-- Include sample test file with comments
-- Document testing framework recommendations
-- Show TDD workflow examples
-
-### 16. scripts/ Directory
-
-**Priority:** Low
-**Reason:** Centralize development/deployment scripts
-
-**Action:**
-
-- Create scripts directory with examples:
-  - `setup.sh` - Initial setup script
-  - `test.sh` - Run all tests
-  - `build.sh` - Build project
-- Make scripts executable and well-documented
-
-### 17. .github/dependabot.yml
-
-**Priority:** Low
-**Reason:** Automate dependency updates
-
-**Action:**
-
-- Create Dependabot configuration
-- Set reasonable update schedules
-- Configure for common ecosystems (npm, pip, go modules, etc.)
-
-### 18. AUTHORS or CONTRIBUTORS.md
-
-**Priority:** Low
-**Reason:** Acknowledge contributors
-
-**Action:**
-
-- Create simple template
-- Consider automation via GitHub API
-- Link from README
-
-### 19. Badge Configuration
-
-**Priority:** Low
-**Reason:** Visual indicators of build status, coverage, version
-
-**Action:**
-
-- Document common badges in README template:
-  - Build status
-  - Test coverage
-  - License
-  - Version
-  - Code quality
-
-### 20. Example/Starter Code
-
-**Priority:** Low
-**Reason:** Provides working starting point
-
-**Action:**
-
-- Create minimal "Hello World" example per language
-- Keep in `examples/` or `starter/` directory
-- Document how to use/remove
-
-## Implementation Priority
-
-**Phase 1 (Essential):**
-
-1. `.gitignore`
-2. `LICENSE`
-3. `.github/ISSUE_TEMPLATE/`
-4. `.github/PULL_REQUEST_TEMPLATE.md`
-
-**Phase 2 (Important):**
-5. `.github/workflows/` (CI/CD templates)
-6. `CONTRIBUTING.md`
-7. `CODE_OF_CONDUCT.md`
-8. `SECURITY.md`
-9. `CHANGELOG.md`
-
-**Phase 3 (Enhancement):**
-10. `.github/CODEOWNERS`
-11. `.gitattributes`
-12. `.env.example`
-13. `.github/dependabot.yml`
-14. Expanded `docs/` structure
-
-**Phase 4 (Polish):**
-15. `tests/` directory with examples
-16. `scripts/` directory
-17. `AUTHORS`/`CONTRIBUTORS.md`
-18. Example/starter code
-19. Badge documentation
-20. `.github/FUNDING.yml`
-
-## Notes
-
-- All files should be templates with placeholders for customization
-- Focus on language-agnostic items that work for any project
-- Document each file's purpose in README or setup guide
-- Consider making some items optional via setup wizard flags
-- Keep templates minimal and well-commented for easy customization
-- Align with GitHub's recommended community standards
-
-## Success Criteria
-
-- [ ] Repository passes GitHub's community standards check
-- [ ] All critical security/legal files present (LICENSE, SECURITY.md)
-- [ ] Contribution workflow is clear and documented
-- [ ] CI/CD foundation is ready for customization
-- [ ] Template feels "complete" for starting new projects
-- [ ] Documentation explains what each file does and how to customize
+**Updated:** 2025-10-02
+**Purpose:** Outline the initial implementation strategy for a website that surfaces searchable music results and routes song requests through Google Workspace.
+
+## Goals & Success Criteria
+
+- Allow visitors to search by song title, artist, or album and return relevant matches with minimal latency.
+- Provide a frictionless path to request a track that captures caller details and writes the submission stream into a Google Doc via Google Forms.
+- Maintain a lightweight architecture that can be operated by a single DJ without ongoing engineering support, hosted on a free Netlify or GitHub Pages tier.
+
+## User Journey Overview
+
+1. Visitor opens the site and sees a prominent search bar plus recent request highlights.
+2. As the user types, the site displays API-backed matches (artist, song, album art, release year).
+3. User selects a track and launches a request modal containing a pre-filled Google Form.
+4. Submission posts to Google Form; the associated Google Sheet/Doc updates automatically for DJ consumption, where the DJ manually curates the playlist.
+
+## Architecture Snapshot
+
+- **Frontend:** Single-page app (Next.js or Vite + React) deployed on Vercel/Netlify for quick iteration, using client-side search calls with debounced input.
+- **API Layer:** Start with a free catalog search provider (Apple/iTunes Search API or Deezer). Evaluate Spotify Web API if catalogue coverage or authenticated features are needed; hide tokens via serverless proxy.
+- **Google Workspace Bridge:** Utilize a Google Form linked to a Google Sheet, with an Apps Script that mirrors new rows into a formatted Google Doc playlist.
+- **State & Storage:** No persistent backend beyond Google Workspace; cache search results in-memory per session.
+
+## Key Workstreams
+
+- **Music API Integration**
+  - Evaluate API options (auth flow, rate limits, cost).
+  - Implement search endpoint wrapper and response normalization (title, artist, album, cover art URL).
+  - Handle pagination, error states, and empty results gracefully.
+- **UI/UX & Frontend Build**
+  - Create responsive layout, search bar with debounce, and results list cards.
+  - Provide feedback states (loading, no results, API errors) and highlight matched query terms.
+  - Build request CTA that opens the Google Form in an embedded iframe or new tab with querystring pre-fill.
+  - Capture audio preview support as an enhancement; design results cards with placeholder space for play controls on mobile.
+- **Google Workspace Automation**
+  - Configure Google Form and connected Sheet capturing requester name, dedication, preferred timeslot, and track metadata.
+  - Write Apps Script to sync Sheet entries into a readable Google Doc queue; include timestamp and status fields.
+  - Explore notifications (email or mobile push) for new requests.
+- **Infrastructure & Tooling**
+  - Set up repository structure, linting (`eslint`, `prettier`), testing (`vitest`/`jest`), and deployment pipeline.
+  - Add env management for API keys (e.g., `.env.local`, Vercel secrets).
+  - Document onboarding steps in `README.md` and `CLAUDE.md`.
+
+## Milestones & Deliverables
+
+1. **Discovery (Today, AM):** Finalize API choice, confirm Google Workspace permissions, draft wireframes, answer open questions.
+   - Compare iTunes Search, Deezer API, and Spotify in terms of cost and auth.
+   - Collect homepage imagery and mobile-first layout references.
+2. **Prototype (Today, Midday):** Build search UI with mocked data, configure Google Form + Doc sync, validate end-to-end flow manually.
+3. **MVP (Today, Afternoon):** Integrate live API, implement responsive mobile design, add basic analytics (page views, search frequency), and document audio preview roadmap.
+4. **Launch Prep (Today, Evening):** Harden error handling, write documentation, run usability walkthrough, deploy to Netlify or GitHub Pages, and schedule future design polish.
+
+## Risks & Mitigations
+
+- **API rate limits or auth complexity:** Choose provider with generous free tier; implement serverless proxy caching.
+- **Google Form latency syncing to Doc:** Schedule Apps Script triggers at shorter intervals; provide manual refresh link in Doc.
+- **User privacy:** Limit required form fields; include consent notice; secure API keys in environment variables.
+- **Mobile usability before UI polish:** Ship functional mobile-first views early and backlog advanced styling until after MVP validation.
+- **One-day timeline:** Focus on critical path features (search, request form, Netlify deployment) and defer nice-to-haves (previews, analytics dashboards, advanced theming).
+
+## Open Questions
+
+- Confirm final API selection post-evaluation (likely iTunes Search or Deezer unless Spotify features are required).
+- What branding/assets (logo, color palette) should guide the UI once we enter the design phase?
+- Any reporting requirements beyond the Google Doc playlist?
