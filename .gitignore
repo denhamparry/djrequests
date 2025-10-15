@@ -1,2 +1,16 @@
 # Environment variables
 .env
+.env.*
+
+# Node dependencies and build outputs
+node_modules/
+dist/
+coverage/
+test-results/
+playwright-report/
+
+# Local tooling artifacts
+*.log
+
+# Local Netlify folder
+.netlify

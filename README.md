@@ -1,139 +1,72 @@
-# Claude Code Project Template
+# DJ Song Request Website
 
-A GitHub template repository that provides a standardized, fully-configured foundation for new projects developed with Claude Code. Includes built-in support for Test-Driven Development (TDD), automated code quality checks, and AI-assisted workflows.
+Web app that lets guests search for tracks, submit requests through a Google Form, and automatically surfaces each entry in a Google Doc queue for the DJ.
 
-## 🚀 Quick Start
+## ✅ Local Setup Checklist
 
-### 1. Create Your Project
+- [ ] Install Node.js 20+ (check with `node -v`).
+- [ ] Clone the repository and install dependencies: `npm install`.
+- [ ] Copy `.env.example` to `.env.local` (create the example file if missing) and add any secrets once you provision them.
+- [ ] Set `VITE_GOOGLE_FORM_URL` to your prefilled Form URL base (ending in `/viewform`).
+- [ ] Update `apps-script/index.ts` with your Google Doc ID and the exact form field labels.
+- [ ] Replace placeholder field IDs in `src/lib/googleForm.ts` with the real Google Form entry IDs.
+- [ ] Run the unit/integration suite: `npm run test:unit`.
+- [ ] (Optional) Install Playwright browsers if you plan to run e2e locally: `npx playwright install`.
+- [ ] Start the dev server: `npm run dev` and open `http://localhost:5173`.
 
-Click the **"Use this template"** button above to create a new repository from this template.
+## 🧪 Test & Quality Commands
 
-### 2. Clone and Setup
+- `npm run lint` — ESLint flat config covering app, functions, and Apps Script helpers.
+- `npm run test:unit` — Vitest suite (Netlify function, React hook, Apps Script formatter).
+- `npm run test:e2e` — Playwright smoke test (spins up Vite dev server automatically).
 
-```bash
-# Clone your new repository
-git clone https://github.com/your-username/your-new-project.git
-cd your-new-project
+## 🏗️ Project Layout
 
-# Open Claude Code
-claude
-```
+- `src/` — React app (search UI, hooks, form helper, MSW setup).
+- `netlify/functions/` — Serverless proxy for the iTunes Search API plus tests.
+- `apps-script/` — Utilities + entry point for Google Doc automation with Vitest coverage.
+- `tests/e2e/` — Playwright specs.
+- `docs/` — Planning docs and agent guide.
 
-### 3. Run the Setup Wizard
+## 🔌 External Configuration
 
-In Claude Code, run:
+| Component | What to configure | Where |
+| --- | --- | --- |
+| Apple iTunes Search API | No auth needed, but watch rate limits (~20 req/min) | `netlify/functions/search.ts` |
+| Google Form | Hidden fields for track metadata + guest info | Set base URL/IDs in `src/lib/googleForm.ts` |
+| Google Doc | Target document for queue | `apps-script/index.ts` (`GOOGLE_DOC_ID`) |
 
-```text
-/setup-repo
-```
+## 📝 Google Form Setup
 
-The interactive wizard will:
+- Create a new Google Form titled “Song Request” (or similar) within your Google Workspace.
+- Add visitor-facing fields:
+  - Short answer: `Your Name` (optional)
+  - Short answer: `Dedication / Message` (optional)
+  - Short answer: `Contact Method` (optional)
+- Add metadata questions you’ll prefill from the site (short answer works best):
+  - `Track ID`
+  - `Track Name`
+  - `Artist Name`
+  - `Album Name`
+  - `Artwork URL`
+  - `Preview URL`
+- Click the three-dot menu → **Get pre-filled link**, populate each metadata field with dummy content, submit, and copy the generated URL:
+  - Record every `entry.<number>` parameter and replace the placeholders in `src/lib/googleForm.ts`.
+  - Use the same URL (without the sample values) as `VITE_GOOGLE_FORM_URL` inside `.env.local`.
+- Link the Form to a Google Sheet (Responses tab → Link to Sheets). This Sheet feeds the Apps Script.
+- Create or choose the Google Doc playlist and note its ID (string between `/d/` and `/edit`).
+- Open Apps Script from the Form (More ⋮ → Script editor), paste the contents of `apps-script/index.ts`, swap `YOUR_DOC_ID_HERE` for your Doc ID, and deploy the script with an “On form submit” trigger.
+- Submit a test via the prefilled Form link to confirm the Sheet captures data and the Doc receives a formatted entry.
+- The web app submits requests server-side via the Netlify function, so guests never leave the site once the field IDs and Doc ID are configured.
 
-- ✅ Gather your project information (name, tech stack, commands)
-- ✅ Customize configuration files for your specific project
-- ✅ Configure pre-commit hooks for your language
-- ✅ Set up automated GitHub PR reviews
-- ✅ Install and verify all configurations
+## 🚀 Deployment
 
-### 4. Start Building
+- Netlify recommended: connect repo, set build command `npm run build`, publish directory `dist`.
+- Add environment variables (`VITE_GOOGLE_FORM_URL`, future API keys) via Netlify dashboard.
+- Enable Netlify Functions for `netlify/functions/search.ts`.
+- Optional fallback: GitHub Pages (requires proxy alternative for secrets).
 
-```bash
-# Commit the configured files
-git add .
-git commit -m "chore: configure Claude Code for project"
+## 🙋 Support Notes
 
-# Start developing with TDD!
-```
-
-## 📦 What's Included
-
-### Core Configuration
-
-- **`CLAUDE.md`** - Project context for Claude Code with TDD guidelines
-- **`docs/setup.md`** - Comprehensive setup checklist and best practices
-- **`.pre-commit-config.yaml`** - Code quality hooks (formatting, linting, security)
-- **`.github/claude-code-review.yml`** - Automated PR review configuration
-
-### Custom Slash Commands
-
-Located in `.claude/commands/`:
-
-- **`/setup-repo`** - Interactive setup wizard (run this first!)
-- **`/review`** - Comprehensive code review (quality, tests, security, performance)
-- **`/tdd-check`** - Verify TDD workflow compliance
-- **`/precommit`** - Run pre-commit hooks on all files
-
-## 🎯 Key Features
-
-### Test-Driven Development (TDD)
-
-This template enforces TDD workflow:
-
-1. **Red** - Write a failing test first
-2. **Green** - Write minimal code to make it pass
-3. **Refactor** - Improve code while keeping tests green
-
-Use `/tdd-check` to verify you're following TDD principles.
-
-### Automated Code Quality
-
-- Pre-commit hooks for consistent formatting and linting
-- Secret detection to prevent credential leaks
-- Language-specific quality checks (Python, Go, JavaScript/TypeScript)
-- Automated PR reviews with Claude Code
-
-### Claude Code Optimized
-
-- Project-specific context in CLAUDE.md
-- Custom slash commands for common workflows
-- Automated PR reviews configured out of the box
-- Best practices built into the template
-
-## 🛠️ Supported Languages
-
-The template is language-agnostic but includes pre-configured hooks for:
-
-- **Python** - Black, Flake8, isort
-- **Go** - gofmt, go vet, go imports
-- **JavaScript/TypeScript** - Prettier, ESLint
-- **Generic** - File formatting, YAML/JSON validation, secret detection
-
-Simply uncomment the relevant hooks in `.pre-commit-config.yaml` during setup.
-
-## 📚 Documentation
-
-- **`CLAUDE.md`** - Main project context for Claude Code
-- **`docs/setup.md`** - Detailed setup instructions and best practices
-- **`.claude/commands/`** - Custom command documentation
-
-## 🔧 Manual Setup (Alternative)
-
-If you prefer not to use the interactive wizard, follow the manual checklist in `docs/setup.md`.
-
-## 🤝 Contributing to the Template
-
-To improve this template:
-
-1. Make your changes
-2. Test with a new project
-3. Update documentation
-4. Submit a PR
-
-## 📝 License
-
-[Add your license here]
-
-## 🙋 Support
-
-For issues with:
-
-- **This template**: Open an issue in this repository
-- **Claude Code**: Visit <https://docs.claude.com/en/docs/claude-code>
-- **Feedback**: <https://github.com/anthropics/claude-code/issues>
-
----
-
-**Template Version:** 1.0
-**Last Updated:** 2025-10-02
-
-Built with ❤️ for Claude Code development
+- Logs and queue management happen inside the linked Google Doc.
+- Adjust rate limiting or caching in `netlify/functions/search.ts` if you hit API limits.
