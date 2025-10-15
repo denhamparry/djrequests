@@ -1,3 +1,9 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 :root {
   color-scheme: light dark;
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -129,6 +135,10 @@ input {
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .request-button:hover,
@@ -156,7 +166,29 @@ input {
     padding: 1.5rem 1rem;
   }
 
+  h1 {
+    font-size: 1.75rem;
+  }
+
+  .subtitle {
+    font-size: 0.95rem;
+  }
+
   input {
     padding: 0.65rem 0.85rem;
+    font-size: 0.95rem;
+  }
+
+  .results li {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    gap: 0.75rem;
+  }
+
+  .request-button {
+    font-size: 0.85rem;
+    padding: 0.35rem 0.75rem;
+    grid-column: 1 / -1;
+    justify-self: stretch;
   }
 }
