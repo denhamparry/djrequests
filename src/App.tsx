@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSongSearch } from './hooks/useSongSearch';
 import { submitSongRequest } from './lib/googleForm';
+import squirrelsImage from '../squirrels.jpeg';
 
 function App() {
   const { query, setQuery, results, status, message, error } = useSongSearch();
@@ -40,6 +41,13 @@ function App() {
   return (
     <main className="app">
       <header>
+        <img
+          src={squirrelsImage}
+          alt="Rhiwbina Squirrels crest"
+          className="hero-image"
+          width={160}
+          height={160}
+        />
         <h1>DJ Requests</h1>
         <p className="subtitle">
           Search for a song by title, artist, or album and send it to the DJ booth.
