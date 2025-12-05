@@ -1,7 +1,7 @@
 # GitHub Issue #19: Disable automatic PR reviews by Claude
 
 **Issue:** [#19](https://github.com/denhamparry/djrequests/issues/19)
-**Status:** Open
+**Status:** Complete
 **Date:** 2025-12-05
 
 ## Problem Statement
