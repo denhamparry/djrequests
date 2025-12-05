@@ -1,14 +1,18 @@
 name: Claude Code Review
 
 on:
-  pull_request:
-    types: [opened, synchronize]
-    # Optional: Only run on specific file changes
-    # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
+  # Automatic PR reviews are disabled to reduce noise
+  # To request a Claude review, comment '@claude' on any PR
+  # The mention-based trigger is configured via GitHub app settings
+
+  # pull_request:
+  #   types: [opened, synchronize]
+  #   # Optional: Only run on specific file changes
+  #   # paths:
+  #   #   - "src/**/*.ts"
+  #   #   - "src/**/*.tsx"
+  #   #   - "src/**/*.js"
+  #   #   - "src/**/*.jsx"
 
 jobs:
   claude-review:
@@ -27,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
