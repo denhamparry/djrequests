@@ -156,6 +156,36 @@ netlify dev
 # Functions: http://localhost:8888/.netlify/functions/{name}
 ```
 
+## GitHub Actions - Claude Code Review
+
+The repository includes a Claude Code Review workflow (`.github/workflows/claude-code-review.yml`), but automatic PR reviews are **disabled** to reduce noise.
+
+### Requesting a Claude Review
+
+To request a code review from Claude on any PR:
+
+1. Add a comment to the PR with `@claude`
+2. Claude will analyze the changes and provide feedback on:
+   - Code quality and best practices
+   - Potential bugs or issues
+   - Performance considerations
+   - Security concerns
+   - Test coverage
+
+### Why Automatic Reviews Are Disabled
+
+- **Reduces noise**: No reviews on every PR update
+- **Intentional reviews**: Reviews only when explicitly requested
+- **Cost efficiency**: Fewer GitHub Actions minutes and API calls
+- **Better workflow**: The workflow file remains for reference and manual triggering if needed
+
+### Workflow Configuration
+
+The workflow uses the `anthropics/claude-code-action@v1` GitHub Action with:
+- Restricted bash tools for GitHub CLI operations (`gh pr comment`, `gh pr diff`, etc.)
+- Project-specific guidance from `CLAUDE.md`
+- OAuth authentication via `CLAUDE_CODE_OAUTH_TOKEN` secret
+
 ## Code Style & Patterns
 
 - **TypeScript strict mode** enabled across all `tsconfig.*.json` files
