@@ -31,6 +31,7 @@ npm run preview            # Preview production build locally
 This is a **TDD-developed, serverless application** with three main components:
 
 ### 1. Frontend (`src/`)
+
 - **Framework**: React 18 + Vite + TypeScript
 - **Key Files**:
   - `src/App.tsx` - Main UI with search and request modal
@@ -39,6 +40,7 @@ This is a **TDD-developed, serverless application** with three main components:
   - `src/test/msw-server.ts` - Mock Service Worker setup for testing
 
 ### 2. Netlify Functions (`netlify/functions/`)
+
 Serverless edge functions that act as proxies to hide API keys and enable CORS:
 
 - **`search.ts`** - Proxies iTunes Search API requests
@@ -55,6 +57,7 @@ Serverless edge functions that act as proxies to hide API keys and enable CORS:
   - Submits POST to Google Form with `application/x-www-form-urlencoded`
 
 ### 3. Apps Script (`apps-script/`)
+
 Google Apps Script that runs on form submission to update the DJ's Google Doc queue:
 
 - **`index.ts`** - Entry point with `onFormSubmit()` trigger
@@ -63,6 +66,7 @@ Google Apps Script that runs on form submission to update the DJ's Google Doc qu
 - **`format.ts`** - Pure formatting logic for Doc entries (fully unit-tested)
 
 ### Shared Code (`shared/`)
+
 - **`formFields.ts`** - Google Form entry IDs mapping
   - **IMPORTANT**: Update these IDs with values from your prefilled Form URL
   - Extract `entry.xxxxx` parameters from the Google Form prefill link
@@ -108,6 +112,7 @@ The app uses Google Form as a submission endpoint to avoid managing a database:
 This project was built following **TDD (Test-Driven Development)**:
 
 ### Unit Tests (Vitest)
+
 - **Netlify Functions**: `netlify/functions/__tests__/*.test.ts`
   - Test request/response handling, error cases, URL transformations
 - **React Hooks**: `src/__tests__/*.test.tsx`
@@ -116,11 +121,13 @@ This project was built following **TDD (Test-Driven Development)**:
   - Test Doc formatting logic in isolation
 
 ### E2E Tests (Playwright)
+
 - **Smoke Test**: `tests/e2e/request.spec.ts`
   - Full user journey: search → select → request modal
   - Runs against live dev server (Vite auto-started by Playwright config)
 
 ### Test Coverage
+
 - Coverage configured in `vite.config.ts`
 - Run `npm run test:unit` to generate coverage report in `coverage/`
 - Target: >80% coverage for all non-trivial code
@@ -128,12 +135,14 @@ This project was built following **TDD (Test-Driven Development)**:
 ## Development Workflow
 
 ### TDD Cycle (Red-Green-Refactor)
+
 1. **Red**: Write failing test first
 2. **Green**: Write minimal code to pass
 3. **Refactor**: Clean up while keeping tests green
 4. Commit with conventional format: `feat:`, `fix:`, `test:`, `refactor:`
 
 ### Running Single Tests
+
 ```bash
 # Run specific test file
 npx vitest run src/__tests__/SearchView.test.tsx
@@ -146,6 +155,7 @@ npx vitest watch netlify/functions/__tests__/request.test.ts
 ```
 
 ### Debugging Netlify Functions Locally
+
 ```bash
 # Install Netlify CLI globally if needed
 npm install -g netlify-cli
@@ -158,7 +168,8 @@ netlify dev
 
 ## GitHub Actions - Claude Code Review
 
-The repository includes a Claude Code Review workflow (`.github/workflows/claude-code-review.yml`), but automatic PR reviews are **disabled** to reduce noise.
+Automatic PR reviews are **opt-in** via `@claude` mentions (configured via the GitHub App).
+There is no workflow file for automatic reviews.
 
 ### Requesting a Claude Review
 
@@ -172,20 +183,6 @@ To request a code review from Claude on any PR:
    - Security concerns
    - Test coverage
 
-### Why Automatic Reviews Are Disabled
-
-- **Reduces noise**: No reviews on every PR update
-- **Intentional reviews**: Reviews only when explicitly requested
-- **Cost efficiency**: Fewer GitHub Actions minutes and API calls
-- **Better workflow**: The workflow file remains for reference and manual triggering if needed
-
-### Workflow Configuration
-
-The workflow uses the `anthropics/claude-code-action@v1` GitHub Action with:
-- Restricted bash tools for GitHub CLI operations (`gh pr comment`, `gh pr diff`, etc.)
-- Project-specific guidance from `CLAUDE.md`
-- OAuth authentication via `CLAUDE_CODE_OAUTH_TOKEN` secret
-
 ## Code Style & Patterns
 
 - **TypeScript strict mode** enabled across all `tsconfig.*.json` files
@@ -198,16 +195,19 @@ The workflow uses the `anthropics/claude-code-action@v1` GitHub Action with:
 ## Known Issues & Gotchas
 
 ### iTunes Search API
+
 - **Rate Limit**: ~20 requests/minute per IP (enforced with 429 status)
 - **Preview URLs**: Some tracks lack `previewUrl` - handle null gracefully
 - **Artwork**: Not all tracks have high-res artwork - fallback to placeholder if needed
 
 ### Google Form Integration
+
 - **Entry IDs change** if you recreate the form - always get fresh IDs from prefill URL
 - **Form field order matters** - Apps Script expects field labels to match exactly
 - **URL format**: Must end in `/viewform` or `/prefill` for the request function to work
 
 ### Apps Script Deployment
+
 - **Trigger not automatic** - Must manually add "On form submit" trigger after deployment
 - **Doc ID is hardcoded** - Update `GOOGLE_DOC_ID` constant before deploying
 - **No local testing** - Use Vitest to test `format.ts` logic separately; Apps Script runtime can only be tested by submitting forms
@@ -215,14 +215,17 @@ The workflow uses the `anthropics/claude-code-action@v1` GitHub Action with:
 ## Environment Variables
 
 ### Required
+
 - `VITE_GOOGLE_FORM_URL` (local) or `GOOGLE_FORM_URL` (Netlify) - Prefilled Google Form base URL
 
 ### Optional
+
 - None currently; iTunes Search API requires no authentication
 
 ## Deployment
 
 ### Netlify (Recommended)
+
 1. Connect GitHub repository to Netlify
 2. Build command: `npm run build`
 3. Publish directory: `dist`
@@ -230,6 +233,7 @@ The workflow uses the `anthropics/claude-code-action@v1` GitHub Action with:
 5. Functions are auto-detected in `netlify/functions/`
 
 ### Verifying Deployment
+
 - Test search: `https://your-site.netlify.app/.netlify/functions/search?term=Beatles`
 - Expected: JSON array of tracks
 - Test form submission via frontend UI (check Google Doc for entry)
@@ -244,18 +248,21 @@ The workflow uses the `anthropics/claude-code-action@v1` GitHub Action with:
 ## Common Development Tasks
 
 ### Adding a New Netlify Function
+
 1. Create `netlify/functions/{name}.ts`
 2. Export `handler: Handler` from `@netlify/functions`
 3. Add tests in `netlify/functions/__tests__/{name}.test.ts`
 4. Access at `/.netlify/functions/{name}` in dev/production
 
 ### Updating Google Form Fields
+
 1. Edit Form, get new prefill URL
 2. Extract all `entry.xxxxx` IDs
 3. Update `shared/formFields.ts` mapping
 4. Restart dev server to pick up changes
 
 ### Debugging Apps Script
+
 - Apps Script has limited debugging - console.log goes to Executions log
 - Best practice: write logic in `format.ts` with Vitest tests, keep `index.ts` minimal
 - Test end-to-end by submitting a form and checking Google Doc output
@@ -263,20 +270,24 @@ The workflow uses the `anthropics/claude-code-action@v1` GitHub Action with:
 ## Dependencies Notes
 
 ### Core
+
 - **React 18** - UI framework
 - **Vite** - Build tool and dev server
 - **TypeScript** - Type safety across all code
 
 ### Testing
+
 - **Vitest** - Unit/integration test runner (Vite-native)
 - **Playwright** - E2E browser testing
 - **MSW** - Mock Service Worker for API mocking
 - **@testing-library/react** - React component testing utilities
 
 ### Netlify
+
 - **@netlify/functions** - Types for serverless function handlers
 
 ### Development
+
 - **ESLint** - Linting (flat config with TypeScript, React hooks, React Refresh plugins)
 - **Prettier** - Code formatting (configured via `prettier.config.cjs`)
 - **Husky** - Git hooks (`npm run prepare` installs hooks)
