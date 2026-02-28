@@ -1,7 +1,7 @@
 # GitHub Issue #25: chore(docs): update CLAUDE.md to remove stale claude-code-review workflow references
 
 **Issue:** [#25](https://github.com/denhamparry/djrequests/issues/25)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-02-28
 
 ## Problem Statement
