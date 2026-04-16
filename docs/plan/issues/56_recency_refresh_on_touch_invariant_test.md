@@ -1,7 +1,7 @@
 # GitHub Issue #56: test(rate-limit): add direct test for recency-refresh-on-touch invariant
 
 **Issue:** [#56](https://github.com/denhamparry/djrequests/issues/56)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -256,3 +256,94 @@ Safe future refactors of the touch path (e.g. consolidating the two
   are co-located and share `beforeEach(resetRateLimit)`.
 - Comment the timestamp choice in the test body so future readers understand
   why `t0 + 60_000` (not `+60_001`) is load-bearing.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+**Original Plan Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation
+
+### Strengths
+
+- Correctly identifies that the issue's suggested test is flawed: at
+  `now + 60_001`, `cutoff = now + 1`, and `'b'` has `last = now + 1`, which
+  matches the TTL predicate `last <= cutoff`. TTL — not the cap — would do
+  the eviction, so the test passes even with a broken invariant.
+- Chosen trigger time `t0 + 60_000` moves `cutoff` to `t0`, so every touched
+  key (`last > t0`) survives TTL and the cap path is the only possible
+  evictor. Verified by walking the timestamps end-to-end.
+- Sizing is tight: 2 seed keys + 9_999 fresh = exactly 10_001 pre-sweep,
+  which is the minimum to force `cap` to drop exactly one key. No off-by-one.
+- Exercises both `Map.set` semantics (existing key preserves order) and the
+  `delete`-then-`set` refactor guard in one assertion pair.
+- Scope is minimal: one test, zero production-code changes, uses existing
+  helpers and `beforeEach(resetRateLimit)` from the enclosing `describe`.
+
+### Gaps Identified
+
+None material. The plan documents the timestamp rationale, calls out that
+the cap drops exactly one key, and explains the failure mode if
+`hits.delete(key)` is removed.
+
+### Edge Cases Not Covered
+
+1. **Edge Case: first-call side-effect on `lastSweepAt`.**
+   - **Current Plan:** Implicitly relies on `checkRateLimit('a', t0)` setting
+     `lastSweepAt = t0` (since initial value is 0 and `t0 - 0 >> 60_000`).
+   - **Verdict:** Behavior is correct and already covered by existing tests
+     (e.g. the "does not sweep before SWEEP_INTERVAL_MS elapses" test uses
+     the same first-call-anchor pattern). No action needed.
+
+### Alternatives Evaluated During Review
+
+1. **Use the issue's suggested test verbatim.**
+   - **Pros:** Smallest possible diff; matches issue text.
+   - **Cons:** Does not actually gate the invariant (TTL evicts `'b'`, not
+     the cap). Would be a false regression gate.
+   - **Verdict:** Rejected — the plan's alternative is strictly better.
+
+2. **Add a direct `_rateLimitOrderForTests` helper exposing key iteration
+   order.**
+   - **Pros:** Could assert LRU ordering without forcing cap eviction.
+   - **Cons:** Adds test-only production surface; duplicates what the cap
+     path already observes; not needed when timing math suffices.
+   - **Verdict:** Rejected — unnecessary.
+
+### Risks and Concerns
+
+1. **Risk:** Future tuning of `WINDOW_MS`, `MAX_KEYS`, or `SWEEP_INTERVAL_MS`
+   could silently invalidate the hand-crafted timestamps.
+   - **Likelihood:** Low
+   - **Impact:** Low (test would fail loudly, not silently)
+   - **Mitigation:** The plan's inline comments explain the load-bearing
+     timestamp choice. If constants move, the failure is obvious.
+
+### Required Changes
+
+None.
+
+### Optional Improvements
+
+- [ ] Consider adding a second assertion `_rateLimitSizeForTests() === 10_001`
+      after the trigger call to pin the post-eviction size (1 cap eviction +
+      1 trigger insertion = size unchanged at 10_001). This makes the
+      "exactly one cap eviction" expectation explicit. **Non-blocking.**
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate
+- [x] Security implications considered and addressed (N/A — test-only)
+- [x] Performance impact assessed (N/A — test-only, bounded loop)
+- [x] Test strategy covers critical paths and edge cases
+- [x] Documentation updates planned (inline test comments)
+- [x] Related issues/dependencies identified (#45, #55)
+- [x] Breaking changes documented (none)
