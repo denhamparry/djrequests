@@ -1,3 +1,4 @@
+// @vitest-environment node
 import type { Handler } from '@netlify/functions';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { handler as searchHandler } from '../search';

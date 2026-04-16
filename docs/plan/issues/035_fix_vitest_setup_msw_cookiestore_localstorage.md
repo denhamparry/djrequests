@@ -1,7 +1,7 @@
 # GitHub Issue #35: vitest setup crashes in jsdom — MSW CookieStore calls localStorage.getItem
 
 **Issue:** [#35](https://github.com/denhamparry/djrequests/issues/35)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -186,14 +186,14 @@ change is infrastructural. Coverage numbers should be equal or better
 
 ## Success Criteria
 
-- [ ] `npx vitest run apps-script/__tests__/format.test.ts` passes
-- [ ] `npx vitest run apps-script/__tests__/index.test.ts` passes
-- [ ] `npx vitest run netlify/functions/__tests__/search.test.ts` passes
-- [ ] `npx vitest run netlify/functions/__tests__/request.test.ts` passes
-- [ ] `npx vitest run src/__tests__/SearchView.test.tsx` passes
-- [ ] `npm run test:unit` runs the full suite without setup-file crashes
-- [ ] `vitest.setup.ts` is removed from the repo
-- [ ] `setupFiles` entry is removed from `vite.config.ts`
+- [x] `npx vitest run apps-script/__tests__/format.test.ts` passes
+- [x] `npx vitest run apps-script/__tests__/index.test.ts` passes
+- [x] `npx vitest run netlify/functions/__tests__/search.test.ts` passes
+- [x] `npx vitest run netlify/functions/__tests__/request.test.ts` passes
+- [x] `npx vitest run src/__tests__/SearchView.test.tsx` passes
+- [x] `npm run test:unit` runs the full suite without setup-file crashes
+- [x] `vitest.setup.ts` is removed from the repo
+- [x] `setupFiles` entry is removed from `vite.config.ts`
 
 ## Files Modified
 
@@ -207,6 +207,11 @@ change is infrastructural. Coverage numbers should be equal or better
    `@vitest-environment node`
 7. `netlify/functions/__tests__/search.test.ts` — add
    `@vitest-environment node`
+8. `package.json` / `package-lock.json` — bump `msw` from `^2.3.1` to
+   latest and `jsdom` from `^24.1.0` to latest (needed during
+   implementation: even after scoping, the React test still hit the
+   CookieStore/localStorage crash under jsdom. Option 3 from the issue
+   turned out to be required, not optional.)
 
 ## Related Issues and Tasks
 
