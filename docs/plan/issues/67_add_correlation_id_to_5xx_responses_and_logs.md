@@ -1,7 +1,7 @@
 # GitHub Issue #67: enhancement(request): add correlation/request ID to 5xx client responses and server logs
 
 **Issue:** [#67](https://github.com/denhamparry/djrequests/issues/67)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -358,3 +358,135 @@ Optionally:
 - When logging, put the ref in parentheses at the end of the label so
   existing grep patterns (`rg '\[request\] Google Form network error'`) still
   match.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+**Original Plan Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation with the minor required
+  changes below addressed inline (no plan re-revision needed).
+
+### Strengths
+
+- Scope matches the issue (#67) exactly — no scope creep into the search
+  function or into 2xx/400/429 responses.
+- Correctly identifies a latent gap: the `!response.ok` branch currently emits
+  no `console.error`, and this plan fixes that as a side-effect of adding the
+  correlation ID.
+- Preserves the existing log-label prefixes (`[request] Google Form network
+  error`, etc.), so existing `rg` / grep runbooks keep working.
+- Test strategy is concrete: `/\(requestId=[0-9a-f]{8}\)/` for the log line,
+  `length === 8` for the body field, and an explicit regression check that
+  `requestId` does NOT appear on 2xx/400/429.
+- Good choice of ID length (8 hex chars, ~32 bits) — short enough to quote
+  verbally, long enough to disambiguate near-simultaneous failures.
+
+### Gaps Identified
+
+1. **Plan mentions "four 5xx tests" then lists five.**
+   - **Impact:** Low (cosmetic)
+   - **Recommendation:** During implementation, just update all five: config
+     missing, network error, abort, invocation error, non-ok response.
+
+### Edge Cases Not Covered
+
+1. **Two requests generate the same 8-char ID within the same log window.**
+   - **Current Plan:** Treats 32 bits as "enough to disambiguate". For DJ
+     Requests scale (tens of requests per event) this is fine — birthday
+     collision around ~65k.
+   - **Recommendation:** No change required. Document collision probability
+     only if operators ask.
+
+2. **Log line is `[request] Google Form network error (requestId=abc12345)`
+   but the error object's `.stack` is still passed as the second `console.error`
+   argument.**
+   - **Current Plan:** Unchanged — second arg is still the error.
+   - **Recommendation:** Fine; Netlify's log backend flattens both args into
+     the same line. No change.
+
+### Alternative Approaches (review-level)
+
+1. **Use Netlify's `x-nf-request-id` header instead of generating one.**
+   - **Pros:** Zero-cost, already unique per invocation, survives into
+     Netlify's own observability UI.
+   - **Cons:** Long (36 char UUID-ish), not guaranteed present in `netlify
+dev`, couples the client-visible ref to Netlify's internal format.
+   - **Verdict:** Plan's choice (`crypto.randomUUID().slice(0, 8)`) is
+     better — shorter, portable across local/test/prod.
+
+2. **Attach a property to a plain `Error` vs. subclass `RequestError`.**
+   - **Pros (plain property):** Zero type gymnastics, works with `(err as
+any).requestId`.
+   - **Pros (subclass):** Type-safe `instanceof RequestError`, exported
+     contract.
+   - **Verdict:** Plan mentions both. Recommend going with the subclass for
+     the `instanceof` narrowing in `App.tsx` — cleaner and matches the small
+     amount of public API already in `googleForm.ts`.
+
+### Risks and Concerns
+
+1. **Fallback `Math.random().toString(16).slice(2, 10)` is unreachable
+   code.**
+   - **Likelihood:** High (that it's unreachable)
+   - **Impact:** Low (it's just dead code)
+   - **Mitigation:** Node 22 types are already installed (`@types/node:
+^22.5.1`) and Netlify runs Node 20+; `crypto.randomUUID` is always present.
+     Project CLAUDE.md policy discourages fallbacks for scenarios that
+     cannot happen. **Required change:** drop the fallback and call
+     `crypto.randomUUID().slice(0, 8)` directly.
+
+2. **The plan's `(requestId=…)` placement after the label string means the
+   existing test assertion `errorSpy.mock.calls[0][0]` is no longer an
+   equality match.**
+   - **Likelihood:** High
+   - **Impact:** Medium (tests fail until updated)
+   - **Mitigation:** Plan already calls this out — the implementation step
+     must update assertions to `toContain(...)` + regex match. Flagging here
+     so it isn't skipped.
+
+3. **Extending the thrown error to carry `requestId` via a subclass must be
+   exported from `googleForm.ts` and imported in `App.tsx`.**
+   - **Likelihood:** Medium (easy to forget)
+   - **Impact:** Low (TypeScript will catch it)
+   - **Mitigation:** Ensure `RequestError` is exported.
+
+### Required Changes
+
+**Changes that must be made during implementation (no plan re-revision):**
+
+- [ ] Drop the `Math.random` fallback in `generateRequestId` — call
+      `crypto.randomUUID().slice(0, 8)` directly.
+- [ ] Commit to the `RequestError` subclass approach (rather than ad-hoc
+      property on `Error`) and export it from `src/lib/googleForm.ts`.
+- [ ] Update all five existing 5xx tests (not four) to assert `requestId` in
+      body and `(requestId=...)` in logs.
+
+### Optional Improvements
+
+- [ ] Add a tiny util-level test for `generateRequestId` asserting
+      `/^[0-9a-f]{8}$/` — trivial but documents intent.
+- [ ] Consider a `Ref:` prefix (localised friendlier) in the UI instead of
+      `ref:`. Not required.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate (verified
+      `netlify/functions/request.ts`, `src/lib/googleForm.ts`, `src/App.tsx`,
+      and the 5xx test cases)
+- [x] Security implications considered (no leakage re-introduced; the ID is
+      server-generated and content-free)
+- [x] Performance impact assessed (one `randomUUID` call per invocation —
+      negligible)
+- [x] Test strategy covers critical paths and edge cases
+- [x] Documentation updates planned (plan mentions optional CLAUDE.md note)
+- [x] Related issues/dependencies identified (#50, #60, #65, #66)
+- [x] Breaking changes documented (none — new optional field on 5xx bodies)
