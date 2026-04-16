@@ -1,10 +1,4 @@
-import type { Song } from '../hooks/useSongSearch';
-
-export type SongRequestDetails = {
-  name?: string;
-  dedication?: string;
-  contact?: string;
-};
+import type { Song, Requester } from '../../shared/types';
 
 type RequestResponse = {
   message?: string;
@@ -12,7 +6,7 @@ type RequestResponse = {
 
 export async function submitSongRequest(
   song: Song,
-  details: SongRequestDetails = {}
+  details: Requester = {}
 ): Promise<RequestResponse> {
   const response = await fetch('/.netlify/functions/request', {
     method: 'POST',

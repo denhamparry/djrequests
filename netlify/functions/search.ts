@@ -1,4 +1,5 @@
 import type { Handler } from '@netlify/functions';
+import type { Song } from '../../shared/types';
 import { corsHeaders } from './_cors';
 
 type ITunesTrack = {
@@ -11,14 +12,7 @@ type ITunesTrack = {
 };
 
 type SearchResponse = {
-  tracks: Array<{
-    id: string;
-    title: string;
-    artist: string;
-    album: string | null;
-    artworkUrl: string | null;
-    previewUrl: string | null;
-  }>;
+  tracks: Song[];
   message?: string;
   error?: string;
   code?: 'upstream_unavailable';
