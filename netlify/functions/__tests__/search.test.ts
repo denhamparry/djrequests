@@ -19,16 +19,66 @@ const failureResponse = (status: number) => ({
 
 describe('search function', () => {
   const fetchMock = vi.fn();
+  const originalEnv = process.env;
 
   beforeEach(() => {
     vi.stubGlobal('fetch', fetchMock);
     vi.useFakeTimers();
+    process.env = { ...originalEnv };
+    delete process.env.ALLOWED_ORIGIN;
+    delete process.env.URL;
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     fetchMock.mockReset();
+    process.env = originalEnv;
+  });
+
+  it('uses ALLOWED_ORIGIN for CORS header on GET responses', async () => {
+    process.env.ALLOWED_ORIGIN = 'https://djrequests.example';
+    fetchMock.mockResolvedValueOnce(okResponse([]));
+
+    const promise = handler(
+      { queryStringParameters: { term: 'x' } } as any,
+      {} as any
+    );
+    await vi.runAllTimersAsync();
+    const response = await promise;
+
+    expect(response.headers?.['access-control-allow-origin']).toBe(
+      'https://djrequests.example'
+    );
+  });
+
+  it('responds to OPTIONS preflight with 204 and configured origin', async () => {
+    process.env.ALLOWED_ORIGIN = 'https://djrequests.example';
+
+    const response = await handler({ httpMethod: 'OPTIONS' } as any, {} as any);
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers?.['access-control-allow-origin']).toBe(
+      'https://djrequests.example'
+    );
+    expect(response.headers?.['access-control-allow-methods']).toMatch(/OPTIONS/);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('falls back to Netlify URL env var when ALLOWED_ORIGIN is unset', async () => {
+    process.env.URL = 'https://auto-deploy.example';
+    fetchMock.mockResolvedValueOnce(okResponse([]));
+
+    const promise = handler(
+      { queryStringParameters: { term: 'x' } } as any,
+      {} as any
+    );
+    await vi.runAllTimersAsync();
+    const response = await promise;
+
+    expect(response.headers?.['access-control-allow-origin']).toBe(
+      'https://auto-deploy.example'
+    );
   });
 
   it('returns 400 when term is missing', async () => {

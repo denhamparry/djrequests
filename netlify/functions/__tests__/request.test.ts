@@ -90,6 +90,31 @@ describe('request function', () => {
     expect(JSON.parse(response.body).message).toMatch(/submitted successfully/i);
   });
 
+  it('uses ALLOWED_ORIGIN for CORS header on responses and OPTIONS', async () => {
+    process.env.ALLOWED_ORIGIN = 'https://djrequests.example';
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200 });
+
+    const postResponse = await handler(
+      {
+        httpMethod: 'POST',
+        body: JSON.stringify({ song: { id: '1', title: 't', artist: 'a' } })
+      } as any,
+      {} as any
+    );
+    expect(postResponse.headers?.['access-control-allow-origin']).toBe(
+      'https://djrequests.example'
+    );
+
+    const optionsResponse = await handler(
+      { httpMethod: 'OPTIONS' } as any,
+      {} as any
+    );
+    expect(optionsResponse.statusCode).toBe(204);
+    expect(optionsResponse.headers?.['access-control-allow-origin']).toBe(
+      'https://djrequests.example'
+    );
+  });
+
   it('returns error when Google Form submission fails', async () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 500 });
 

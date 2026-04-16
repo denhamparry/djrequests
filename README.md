@@ -62,7 +62,12 @@ Web app that lets guests search for tracks, submit requests through a Google For
 ## 🚀 Deployment
 
 - Netlify recommended: connect repo, set build command `npm run build`, publish directory `dist`.
-- Add environment variables (`VITE_GOOGLE_FORM_URL`, future API keys) via Netlify dashboard.
+- Add environment variables via Netlify dashboard:
+  - `GOOGLE_FORM_URL` (or `VITE_GOOGLE_FORM_URL`) — prefilled Form URL.
+  - `ALLOWED_ORIGIN` — origin allowed to call the Netlify functions
+    (e.g. `https://djrequests.netlify.app`). If unset, the functions fall
+    back to Netlify's auto-provided `URL` env var, then to `*` as a last
+    resort (useful for local `netlify dev`).
 - Enable Netlify Functions for `netlify/functions/search.ts`.
 - Optional fallback: GitHub Pages (requires proxy alternative for secrets).
 
