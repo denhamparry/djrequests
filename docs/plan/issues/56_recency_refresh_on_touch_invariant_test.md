@@ -1,7 +1,7 @@
 # GitHub Issue #56: test(rate-limit): add direct test for recency-refresh-on-touch invariant
 
 **Issue:** [#56](https://github.com/denhamparry/djrequests/issues/56)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -186,14 +186,14 @@ N/A — pure in-memory module test; no fetch / network / MSW interaction.
 
 ## Success Criteria
 
-- [ ] New test `refreshes recency on touch: touched key survives cap eviction`
+- [x] New test `refreshes recency on touch: touched key survives cap eviction`
       added to `_rateLimit.test.ts` inside the existing `describe('rate-limit
       map bounds', …)` block.
-- [ ] `npm run test:unit` passes with the new test green.
-- [ ] Test fails if `hits.delete(key)` is removed from `checkRateLimit`
+- [x] `npm run test:unit` passes with the new test green.
+- [x] Test fails if `hits.delete(key)` is removed from `checkRateLimit`
       (manually verified locally).
-- [ ] No changes to production code (`netlify/functions/_rateLimit.ts`).
-- [ ] Pre-commit hooks pass.
+- [x] No changes to production code (`netlify/functions/_rateLimit.ts`).
+- [x] Pre-commit hooks pass.
 
 ## Files Modified
 
