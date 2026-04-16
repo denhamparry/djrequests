@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse, type HttpResponseResolver } from 'msw';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import App from '../App';
 import { server } from '../test/msw-server';
@@ -12,6 +12,45 @@ afterAll(() => server.close());
 
 const searchEndpoint = '/.netlify/functions/search';
 const requestEndpoint = '/.netlify/functions/request';
+
+type TrackOverride = Partial<{
+  id: string;
+  artist: string;
+  album: string | null;
+  artworkUrl: string | null;
+  previewUrl: string | null;
+}>;
+
+const defaultTrack = {
+  id: '1',
+  artist: 'A',
+  album: null as string | null,
+  artworkUrl: null as string | null,
+  previewUrl: null as string | null
+};
+
+const renderAndRequest = async (
+  title: string,
+  postHandler: HttpResponseResolver,
+  opts: { name?: string; searchTerm?: string; track?: TrackOverride } = {}
+) => {
+  const { name = 'Avery', searchTerm = 'anything', track } = opts;
+  const merged = { ...defaultTrack, title, ...track };
+
+  server.use(
+    http.get(searchEndpoint, () => HttpResponse.json({ tracks: [merged] })),
+    http.post(requestEndpoint, postHandler)
+  );
+
+  const user = userEvent.setup();
+  render(<App />);
+
+  await user.type(screen.getByLabelText(/Your name/i), name);
+  await user.type(screen.getByLabelText(/Search songs/i), searchTerm);
+  await user.click(
+    await screen.findByRole('button', { name: new RegExp(`Request "${title}"`) })
+  );
+};
 
 describe('Song search experience', () => {
   it('shows results after a debounced search', async () => {
@@ -117,43 +156,27 @@ describe('Song search experience', () => {
   });
 
   it('submits the song request through the backend and shows confirmation', async () => {
-    const user = userEvent.setup();
-
-    server.use(
-      http.get(searchEndpoint, () => {
-        return HttpResponse.json({
-          tracks: [
-            {
-              id: '321',
-              title: 'Digital Love',
-              artist: 'Daft Punk',
-              album: 'Discovery',
-              artworkUrl: 'https://example.com/discovery.jpg',
-              previewUrl: 'https://example.com/digital-love.m4a'
-            }
-          ]
-        });
-      }),
-      http.post(requestEndpoint, async ({ request }) => {
+    await renderAndRequest(
+      'Digital Love',
+      async ({ request }) => {
         const body = await request.json();
         expect(body.song.id).toBe('321');
         expect(body.song.title).toBe('Digital Love');
         expect(body.requester.name).toBe('Avery');
 
         return HttpResponse.json({ message: 'Song request submitted successfully.' });
-      })
+      },
+      {
+        searchTerm: 'digital love',
+        track: {
+          id: '321',
+          artist: 'Daft Punk',
+          album: 'Discovery',
+          artworkUrl: 'https://example.com/discovery.jpg',
+          previewUrl: 'https://example.com/digital-love.m4a'
+        }
+      }
     );
-
-    render(<App />);
-
-    await user.type(screen.getByLabelText(/Your name/i), 'Avery');
-    await user.type(screen.getByLabelText(/Search songs/i), 'digital love');
-
-    const requestButton = await screen.findByRole('button', {
-      name: /Request "Digital Love"/i
-    });
-
-    await user.click(requestButton);
 
     expect(
       await screen.findByText(/Request for "Digital Love" sent to the DJ queue./i)
@@ -161,39 +184,19 @@ describe('Song search experience', () => {
   });
 
   it('trims leading/trailing whitespace from the requester name before submitting', async () => {
-    const user = userEvent.setup();
-
-    server.use(
-      http.get(searchEndpoint, () =>
-        HttpResponse.json({
-          tracks: [
-            {
-              id: '777',
-              title: 'Harder Better Faster Stronger',
-              artist: 'Daft Punk',
-              album: 'Discovery',
-              artworkUrl: null,
-              previewUrl: null
-            }
-          ]
-        })
-      ),
-      http.post(requestEndpoint, async ({ request }) => {
+    await renderAndRequest(
+      'Harder Better Faster Stronger',
+      async ({ request }) => {
         const body = (await request.json()) as { requester: { name: string } };
         expect(body.requester.name).toBe('Avery');
         return HttpResponse.json({ message: 'Song request submitted successfully.' });
-      })
+      },
+      {
+        name: '  Avery  ',
+        searchTerm: 'daft punk',
+        track: { id: '777', artist: 'Daft Punk', album: 'Discovery' }
+      }
     );
-
-    render(<App />);
-
-    await user.type(screen.getByLabelText(/Your name/i), '  Avery  ');
-    await user.type(screen.getByLabelText(/Search songs/i), 'daft punk');
-
-    const requestButton = await screen.findByRole('button', {
-      name: /Request "Harder Better Faster Stronger"/i
-    });
-    await user.click(requestButton);
 
     expect(
       await screen.findByText(
@@ -203,68 +206,22 @@ describe('Song search experience', () => {
   });
 
   it('includes the (ref: <id>) suffix when the submission fails with a requestId', async () => {
-    const user = userEvent.setup();
-
-    server.use(
-      http.get(searchEndpoint, () =>
-        HttpResponse.json({
-          tracks: [
-            {
-              id: '1',
-              title: 'T',
-              artist: 'A',
-              album: null,
-              artworkUrl: null,
-              previewUrl: null
-            }
-          ]
-        })
-      ),
-      http.post(requestEndpoint, () =>
-        HttpResponse.json(
-          { error: 'Failed to reach the request service.', requestId: 'abc12345' },
-          { status: 502 }
-        )
+    await renderAndRequest('T', () =>
+      HttpResponse.json(
+        { error: 'Failed to reach the request service.', requestId: 'abc12345' },
+        { status: 502 }
       )
     );
-
-    render(<App />);
-
-    await user.type(screen.getByLabelText(/Your name/i), 'Avery');
-    await user.type(screen.getByLabelText(/Search songs/i), 'anything');
-    await user.click(await screen.findByRole('button', { name: /Request "T"/i }));
 
     expect(await screen.findByText(/\(ref: abc12345\)/)).toBeInTheDocument();
   });
 
   it('does not include (ref: ...) when the submission fails without a requestId', async () => {
-    const user = userEvent.setup();
-
-    server.use(
-      http.get(searchEndpoint, () =>
-        HttpResponse.json({
-          tracks: [
-            {
-              id: '2',
-              title: 'T2',
-              artist: 'A',
-              album: null,
-              artworkUrl: null,
-              previewUrl: null
-            }
-          ]
-        })
-      ),
-      http.post(requestEndpoint, () =>
-        HttpResponse.json({ error: 'Invalid JSON payload' }, { status: 400 })
-      )
+    await renderAndRequest(
+      'T2',
+      () => HttpResponse.json({ error: 'Invalid JSON payload' }, { status: 400 }),
+      { track: { id: '2' } }
     );
-
-    render(<App />);
-
-    await user.type(screen.getByLabelText(/Your name/i), 'Avery');
-    await user.type(screen.getByLabelText(/Search songs/i), 'anything');
-    await user.click(await screen.findByRole('button', { name: /Request "T2"/i }));
 
     const banner = await screen.findByText(/Invalid JSON payload/);
     expect(banner).toBeInTheDocument();
