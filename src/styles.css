@@ -106,6 +106,12 @@ input {
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
 }
 
+.artwork {
+  position: relative;
+  width: 56px;
+  height: 56px;
+}
+
 .results img,
 .artwork-placeholder {
   width: 56px;
@@ -113,6 +119,45 @@ input {
   border-radius: 0.75rem;
   object-fit: cover;
   background: rgba(255, 255, 255, 0.08);
+  display: block;
+}
+
+.preview-button {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.preview-button:hover,
+.preview-button:focus-visible {
+  background: rgba(0, 0, 0, 0.65);
+  outline: 2px solid rgba(255, 255, 255, 0.8);
+  outline-offset: -2px;
+}
+
+.preview-button[data-state='playing'] {
+  background: rgba(15, 118, 110, 0.7);
+}
+
+.preview-spinner {
+  animation: preview-spin 0.9s linear infinite;
+}
+
+@keyframes preview-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .song-title {
