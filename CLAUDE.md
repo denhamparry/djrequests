@@ -62,7 +62,7 @@ Google Apps Script that runs on form submission to update the DJ's Google Doc qu
 
 - **`index.ts`** - Entry point with `onFormSubmit()` trigger
   - Wire this to the Google Form "On form submit" trigger
-  - Update `GOOGLE_DOC_ID` constant with your target Doc ID
+  - Set the `GOOGLE_DOC_ID` Script Property (Project Settings → Script Properties) to your target Doc ID
 - **`format.ts`** - Pure formatting logic for Doc entries (fully unit-tested)
 
 ### Shared Code (`shared/`)
@@ -100,7 +100,7 @@ The app uses Google Form as a submission endpoint to avoid managing a database:
 5. Set up Apps Script:
    - Form → ⋮ → Script editor
    - Copy contents of `apps-script/index.ts`
-   - Update `GOOGLE_DOC_ID` constant
+   - In Apps Script, open Project Settings → Script Properties and add `GOOGLE_DOC_ID` = your Doc ID (from the Doc URL `/d/{ID}/edit`)
    - Add "On form submit" trigger (triggers → ⊕)
 
 6. Add environment variables:
@@ -209,7 +209,7 @@ To request a code review from Claude on any PR:
 ### Apps Script Deployment
 
 - **Trigger not automatic** - Must manually add "On form submit" trigger after deployment
-- **Doc ID is hardcoded** - Update `GOOGLE_DOC_ID` constant before deploying
+- **Doc ID comes from a Script Property** - Set `GOOGLE_DOC_ID` under Project Settings → Script Properties before first form submission. If unset or blank, `onFormSubmit` throws a clear error visible in the Executions log
 - **No local testing** - Use Vitest to test `format.ts` logic separately; Apps Script runtime can only be tested by submitting forms
 
 ## Environment Variables

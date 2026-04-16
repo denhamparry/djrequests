@@ -16,8 +16,16 @@ type SheetsOnFormSubmitEvent = {
   namedValues: Record<string, string[]>;
 };
 
+type ScriptProperties = {
+  getProperty(key: string): string | null;
+};
+
 declare const DocumentApp: {
   openById(docId: string): { getBody(): DocBody };
+};
+
+declare const PropertiesService: {
+  getScriptProperties(): ScriptProperties;
 };
 
 /**
@@ -39,8 +47,19 @@ export function appendSubmissionToDoc(
   body.appendHorizontalRule();
 }
 
-const GOOGLE_DOC_ID =
-  "1FAIpQLSeNCU8yqziDBKWzCpUirKPgpkZfJIlIJmoVrc3YNAa_vcGGbQ";
+export function getGoogleDocId(): string {
+  const id = PropertiesService.getScriptProperties().getProperty(
+    "GOOGLE_DOC_ID"
+  );
+  if (!id || !id.trim()) {
+    throw new Error(
+      "Script Property 'GOOGLE_DOC_ID' is not set. Set it via Apps Script " +
+        "Project Settings → Script Properties, using the ID from the target " +
+        "Doc URL (/d/{ID}/edit)."
+    );
+  }
+  return id;
+}
 
 /**
  * Apps Script entry point. Wire this to the Google Form submit trigger.
@@ -48,7 +67,7 @@ const GOOGLE_DOC_ID =
  */
 export function onFormSubmit(event: SheetsOnFormSubmitEvent) {
   const namedValues = event.namedValues;
-  const body = DocumentApp.openById(GOOGLE_DOC_ID).getBody();
+  const body = DocumentApp.openById(getGoogleDocId()).getBody();
 
   const submission: SongRequestSubmission = {
     trackId: namedValues["Track ID"]?.[0] ?? "",
