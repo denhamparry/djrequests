@@ -1,7 +1,7 @@
 # GitHub Issue #36: Song search returns 404 on production (iTunes Search API upstream failure)
 
 **Issue:** [#36](https://github.com/denhamparry/djrequests/issues/36)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-16
 
 ## Problem Statement

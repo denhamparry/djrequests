@@ -5,14 +5,28 @@ import { handler as searchHandler } from '../search';
 
 const handler = searchHandler as Handler;
 
+const okResponse = (results: unknown[]) => ({
+  ok: true,
+  status: 200,
+  json: async () => ({ results })
+});
+
+const failureResponse = (status: number) => ({
+  ok: false,
+  status,
+  json: async () => ({})
+});
+
 describe('search function', () => {
   const fetchMock = vi.fn();
 
   beforeEach(() => {
     vi.stubGlobal('fetch', fetchMock);
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     fetchMock.mockReset();
   });
@@ -27,27 +41,25 @@ describe('search function', () => {
   });
 
   it('normalizes songs from the iTunes API', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        results: [
-          {
-            trackId: 123,
-            trackName: 'Around the World',
-            artistName: 'Daft Punk',
-            collectionName: 'Homework',
-            previewUrl: 'https://example.com/preview.m4a',
-            artworkUrl100: 'https://example.com/artwork.jpg'
-          }
-        ]
-      })
-    });
+    fetchMock.mockResolvedValueOnce(
+      okResponse([
+        {
+          trackId: 123,
+          trackName: 'Around the World',
+          artistName: 'Daft Punk',
+          collectionName: 'Homework',
+          previewUrl: 'https://example.com/preview.m4a',
+          artworkUrl100: 'https://example.com/artwork.jpg'
+        }
+      ])
+    );
 
-    const response = await handler(
+    const promise = handler(
       { queryStringParameters: { term: 'daft punk' } } as any,
       {} as any
     );
+    await vi.runAllTimersAsync();
+    const response = await promise;
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('https://itunes.apple.com/search?'),
@@ -72,16 +84,14 @@ describe('search function', () => {
   });
 
   it('handles empty results gracefully', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({ results: [] })
-    });
+    fetchMock.mockResolvedValueOnce(okResponse([]));
 
-    const response = await handler(
+    const promise = handler(
       { queryStringParameters: { term: 'unknown track' } } as any,
       {} as any
     );
+    await vi.runAllTimersAsync();
+    const response = await promise;
 
     expect(response.statusCode).toBe(200);
     const payload = JSON.parse(response.body);
@@ -89,20 +99,99 @@ describe('search function', () => {
     expect(payload.message).toMatch(/No songs found/i);
   });
 
-  it('surfaces a friendly message when upstream is throttled', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: false,
-      status: 429,
-      json: async () => ({})
-    });
+  it('surfaces a friendly message when upstream is throttled and does not retry', async () => {
+    fetchMock.mockResolvedValueOnce(failureResponse(429));
 
-    const response = await handler(
+    const promise = handler(
       { queryStringParameters: { term: 'beatles' } } as any,
       {} as any
     );
+    await vi.runAllTimersAsync();
+    const response = await promise;
 
     expect(response.statusCode).toBe(503);
     const payload = JSON.parse(response.body);
     expect(payload.error).toMatch(/rate limit/i);
+    expect(payload.code).toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries on transient upstream 404 and returns tracks when retry succeeds', async () => {
+    fetchMock
+      .mockResolvedValueOnce(failureResponse(404))
+      .mockResolvedValueOnce(
+        okResponse([
+          {
+            trackId: 1,
+            trackName: 'Hey Jude',
+            artistName: 'The Beatles'
+          }
+        ])
+      );
+
+    const promise = handler(
+      { queryStringParameters: { term: 'beatles' } } as any,
+      {} as any
+    );
+    await vi.runAllTimersAsync();
+    const response = await promise;
+
+    expect(response.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const payload = JSON.parse(response.body);
+    expect(payload.tracks).toHaveLength(1);
+  });
+
+  it('retries on upstream 500 and returns tracks when retry succeeds', async () => {
+    fetchMock
+      .mockResolvedValueOnce(failureResponse(500))
+      .mockResolvedValueOnce(okResponse([{ trackId: 2, trackName: 'X', artistName: 'Y' }]));
+
+    const promise = handler(
+      { queryStringParameters: { term: 'y' } } as any,
+      {} as any
+    );
+    await vi.runAllTimersAsync();
+    const response = await promise;
+
+    expect(response.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries after a network error and returns tracks when retry succeeds', async () => {
+    fetchMock
+      .mockRejectedValueOnce(new Error('socket hang up'))
+      .mockResolvedValueOnce(okResponse([{ trackId: 3, trackName: 'A', artistName: 'B' }]));
+
+    const promise = handler(
+      { queryStringParameters: { term: 'a' } } as any,
+      {} as any
+    );
+    await vi.runAllTimersAsync();
+    const response = await promise;
+
+    expect(response.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns 503 with upstream_unavailable code after retries are exhausted', async () => {
+    fetchMock
+      .mockResolvedValueOnce(failureResponse(404))
+      .mockResolvedValueOnce(failureResponse(404))
+      .mockResolvedValueOnce(failureResponse(404));
+
+    const promise = handler(
+      { queryStringParameters: { term: 'beatles' } } as any,
+      {} as any
+    );
+    await vi.runAllTimersAsync();
+    const response = await promise;
+
+    expect(response.statusCode).toBe(503);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const payload = JSON.parse(response.body);
+    expect(payload.code).toBe('upstream_unavailable');
+    expect(payload.error).toMatch(/404/);
+    expect(payload.tracks).toEqual([]);
   });
 });
