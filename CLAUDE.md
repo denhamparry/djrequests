@@ -246,7 +246,7 @@ To request a code review from Claude on any PR:
 ## File Structure Notes
 
 - **No `src/components/`** - All UI in `App.tsx` for simplicity (single-page app)
-- **Shared types** - Interfaces duplicated in functions/frontend due to Netlify isolation
+- **Shared types** - `shared/types.ts` is the single source of truth for cross-layer contracts (`Song`, `Requester`); both `src/` and `netlify/functions/` import from it, and the Netlify bundler (esbuild) pulls `shared/` files in transitively
 - **Test collocation** - Tests live in `__tests__/` subdirectories near source files
 - **TypeScript configs** - Split into `tsconfig.base.json`, `tsconfig.app.json`, `tsconfig.node.json` for different contexts (Vite, Node, Apps Script)
 
