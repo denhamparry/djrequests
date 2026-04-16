@@ -10,6 +10,12 @@ jobs:
   test:
     name: Lint and test
     runs-on: ubuntu-latest
+    env:
+      # apps-script/format.ts formats timestamps with toLocaleString and no
+      # explicit timeZone, and the fixture in format.test.ts asserts the BST
+      # rendering (20:30 from 19:30Z). Pin the job to Europe/London so CI
+      # matches local dev until the formatter takes an explicit timeZone.
+      TZ: Europe/London
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
