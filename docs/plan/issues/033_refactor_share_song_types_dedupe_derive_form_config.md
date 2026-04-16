@@ -1,7 +1,7 @@
 # GitHub Issue #33: Refactor — share Song/Track types and dedupe deriveFormResponseConfig call
 
 **Issue:** [#33](https://github.com/denhamparry/djrequests/issues/33)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -323,3 +323,101 @@ npm run build
   layer (post-validation, not wire shape).
 - Prefer re-exports over mass import-site edits when the shared module is
   first introduced (reduces diff noise).
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+**Original Plan Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation
+
+### Strengths
+
+- Plan correctly identifies that the issue body is partially stale: the
+  duplicate `deriveFormResponseConfig()` call was already removed in PR #32.
+  Plan addresses the remaining residual awkwardness (IIFE wrapping) rather
+  than inventing a non-existent duplicate.
+- Correctly scopes `Validated*` types as a distinct layer (post-validation
+  guarantees) rather than forcing them into the shared module.
+- Uses the established `shared/` pattern (precedent: `shared/formFields.ts`),
+  so no tsconfig or bundler changes are needed — relative imports already work
+  for both Vite (frontend) and Netlify function esbuild.
+- Re-export strategy in `useSongSearch.ts` (step 2) reduces import-site churn.
+
+### Gaps Identified
+
+1. **Gap:** Plan does not mention `src/lib/googleForm.ts`'s `SongRequestDetails`
+   is currently `{ name?: string; dedication?: string; contact?: string }`
+   (all optional) whereas `_validate.ts`'s `ValidatedRequester` uses
+   `string | null`. Plan's proposed `Requester` mirrors the wire shape
+   (optional strings), so `googleForm.ts` aligns. Keep this in mind — do not
+   accidentally replace `SongRequestDetails` with `ValidatedRequester`.
+   - **Impact:** Low (caught by TS if done wrong)
+   - **Recommendation:** Document in implementation that `Requester` is the
+     pre-validation wire shape.
+
+2. **Gap:** No explicit check on test files. A grep confirmed no duplicate
+   `Song`/`Track`/`Requester` type declarations exist in `__tests__/`
+   directories — tests rely on inline objects. No action needed.
+   - **Impact:** None
+   - **Recommendation:** Skip.
+
+### Edge Cases Not Covered
+
+1. **Edge Case:** `tsconfig.app.json` sets `"include": ["src"]`. Does it
+   compile `shared/types.ts`?
+   - **Current Plan:** Does not explicitly address.
+   - **Verified:** Relative imports pull the referenced file into the compile
+     graph regardless of `include` (which only narrows the root file set).
+     The existing `shared/formFields.ts` import from `netlify/functions/` and
+     tests proves this works in practice.
+   - **Recommendation:** No change needed.
+
+### Alternatives Considered (Review)
+
+1. **Alternative: Put shared types in `netlify/functions/_types.ts`.**
+   - **Pros:** Keeps function concerns in `netlify/`.
+   - **Cons:** Frontend can't import cleanly from Netlify function dir; creates
+     the same cross-layer problem in reverse.
+   - **Verdict:** Plan's `shared/` choice is correct.
+
+### Risks and Concerns
+
+1. **Risk:** Frontend tests may break if `useSongSearch.ts` re-export misses a
+   downstream consumer.
+   - **Likelihood:** Low
+   - **Impact:** Low (TS compile fails loudly)
+   - **Mitigation:** Plan already includes `npm run test:unit` and
+     `npm run build` in success criteria.
+
+### Required Changes
+
+None.
+
+### Optional Improvements
+
+- [ ] In step 5 (`request.ts`), initialise `formConfig` with an explicit type
+      annotation to make the control-flow obvious:
+      `let formConfig: ReturnType<typeof deriveFormResponseConfig>;`
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate
+- [x] Security implications considered (no behaviour change — N/A)
+- [x] Performance impact assessed (type-only refactor — no runtime impact)
+- [x] Test strategy covers critical paths (existing tests cover behaviour)
+- [x] Documentation updates planned (none needed — internal refactor)
+- [x] Related issues/dependencies identified (#31, #32)
+- [x] Breaking changes documented (none — internal types only)
+
+### Status Update
+
+**Plan status:** Reviewed (Approved)
