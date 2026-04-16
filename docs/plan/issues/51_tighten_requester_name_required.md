@@ -1,7 +1,7 @@
 # GitHub Issue #51: tighten shared Requester.name to string (not optional)
 
 **Issue:** [#51](https://github.com/denhamparry/djrequests/issues/51)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-16
 
 ## Problem Statement

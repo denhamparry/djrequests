@@ -12,7 +12,7 @@ export type Song = {
 };
 
 export type Requester = {
-  name?: string;
+  name: string;
   dedication?: string;
   contact?: string;
 };

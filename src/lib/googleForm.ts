@@ -6,7 +6,7 @@ type RequestResponse = {
 
 export async function submitSongRequest(
   song: Song,
-  details: Requester = {}
+  details: Requester
 ): Promise<RequestResponse> {
   const response = await fetch('/.netlify/functions/request', {
     method: 'POST',
