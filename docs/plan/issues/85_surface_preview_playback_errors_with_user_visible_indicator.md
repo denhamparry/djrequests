@@ -1,7 +1,7 @@
 # GitHub Issue #85: feat(ui): surface preview playback errors with a user-visible indicator
 
 **Issue:** [#85](https://github.com/denhamparry/djrequests/issues/85)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -352,3 +352,146 @@ No changes to `tests/e2e/request.spec.ts` are required — the e2e test stubs
   alongside `PREVIEW_LOADING_TIMEOUT_MS` for discoverability.
 - Mirror the existing cleanup pattern (`clearLoadingTimer`) for the new
   timer so future maintainers see a consistent idiom.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+**Original Plan Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation
+
+### Strengths
+
+- File and line references are accurate — I re-read `src/App.tsx:91-97`,
+  `src/components/PreviewButton.tsx:3`, and `src/styles.css:125-155` and
+  confirm they match the plan.
+- Extending `PreviewState` with a fourth variant composes cleanly with the
+  existing `data-state` attribute and `previewStateFor` derivation — no
+  orthogonal boolean flag.
+- Cleanup story is complete: new timer is cleared in the unmount effect
+  and when results change, mirroring `loadingTimer`.
+- Retry-during-window behaviour is thought through (clear error timer at
+  top of `togglePreview` before starting the new play).
+
+### Gaps Identified
+
+1. **Gap 1: `<audio>` `error` event does not feed the new flash**
+   - **Impact:** Low
+   - The existing `audio.addEventListener('error', resetPreviewState)`
+     covers load/decode errors that don't surface through the
+     `audio.play()` promise rejection. The plan routes only the
+     `play().catch` path through `flashPreviewError`. This is consistent
+     with the issue body (which specifies the `play()` rejection path),
+     so this is a scope observation rather than a blocker.
+   - **Recommendation:** Acceptable as-is. Optionally, during
+     implementation, also call `flashPreviewError` from the `error`
+     listener for uniform UX. Document the decision either way.
+
+### Edge Cases Not Covered
+
+1. **Edge Case 1: `stalled` → error interplay**
+   - **Current Plan:** `stalled` handler (`src/App.tsx:60-63`) continues
+     to call `resetPreviewState()` without flashing error.
+   - **Recommendation:** Keep as-is. A stall is user-visible (spinner
+     disappears) and the 8 s safety timeout already covers pathological
+     cases. Adding an error flash on stall would widen scope and risk
+     false positives on flaky networks.
+
+2. **Edge Case 2: Error flash for track A while track B plays**
+   - **Current Plan:** `erroredSongId` is per-track; if the user plays A
+     (errors), then plays B (succeeds), A's error icon keeps flashing
+     for the remainder of the 2 s window.
+   - **Recommendation:** Acceptable and arguably correct — each button
+     reflects its own last result. Implementation need only ensure the
+     single-player invariant (pause-on-switch) still holds, which it
+     does because `togglePreview` for B does not clear A's error timer.
+
+3. **Edge Case 3: Fake-timer test interaction with `queueMicrotask`**
+   - **Current Plan:** Uses `vi.useFakeTimers({ shouldAdvanceTime: true
+})` in the retry test.
+   - **Recommendation:** The existing 8 s-timeout test (`PreviewButton.
+test.tsx:162-187`) establishes this pattern works. Follow the same
+     `try/finally` with `vi.useRealTimers()` cleanup. Note that
+     `queueMicrotask`-based `playing` dispatch from `beforeEach` is
+     unaffected by fake timers — good.
+
+### Alternative Approaches Re-examined
+
+1. **Toast notification**
+   - **Pros:** More prominent feedback.
+   - **Cons:** No existing toast infrastructure; adds a new global
+     surface area; pulls focus from the track.
+   - **Verdict:** Not worth the overhead for a 2 s indicator. Plan's
+     choice is better.
+
+2. **Persistent error banner below the track**
+   - **Pros:** Allows a text message explaining the failure.
+   - **Cons:** Requires layout changes in `.results` list items;
+     clutters the list; requires manual dismissal or competing timeout.
+   - **Verdict:** Plan's icon-only overlay is the right trade-off for
+     MVP.
+
+3. **Clear error on next interaction (no timer)**
+   - **Pros:** Simpler state machine; no timer to manage.
+   - **Cons:** Error state could linger indefinitely if user never
+     clicks again; issue explicitly requests auto-clear.
+   - **Verdict:** Timer approach matches the issue spec.
+
+### Risks and Concerns
+
+1. **Risk 1: setState on unmounted component via error timer**
+   - **Likelihood:** Low
+   - **Impact:** Low (warning only, no user-visible bug)
+   - **Mitigation:** Plan extends the unmount cleanup effect to call
+     `clearErrorTimer()`. Verified adequate.
+
+2. **Risk 2: Accessibility — screen readers may not announce aria-label
+   change**
+   - **Likelihood:** Medium
+   - **Impact:** Low
+   - **Mitigation:** Some AT implementations do announce aria-label
+     changes on focused controls; others don't. Acceptable for a 2 s
+     transient indicator. Consider adding `aria-live="polite"` on a
+     hidden span near the button as a future enhancement if users
+     report issues.
+
+3. **Risk 3: Warning icon confused with "not-allowed" state**
+   - **Likelihood:** Low
+   - **Impact:** Low
+   - **Mitigation:** The muted-red background and updated aria-label
+     ("tap to retry") make the intent clear. Visual design should match
+     existing error styling where possible.
+
+### Required Changes
+
+None. The plan is approved as written.
+
+### Optional Improvements
+
+- [ ] Consider routing the `audio.addEventListener('error', ...)` path
+      through `flashPreviewError` as well, for uniform UX across both
+      play-rejection and load/decode failures (Gap 1 above).
+- [ ] Add a brief comment above `flashPreviewError` explaining the 2 s
+      window and why it is independent of the 8 s loading timeout.
+- [ ] When adding the warning SVG to `PreviewButton`, keep the viewBox
+      and dimensions identical to the existing icons to avoid layout
+      shift as state transitions.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate
+- [x] Security implications considered (none — no user input involved)
+- [x] Performance impact assessed (negligible — one more timer)
+- [x] Test strategy covers critical paths and edge cases
+- [x] Documentation updates planned (plan doc itself; no user-facing
+      docs required)
+- [x] Related issues/dependencies identified (#83, #84)
+- [x] Breaking changes documented (none — `PreviewState` is internal)
