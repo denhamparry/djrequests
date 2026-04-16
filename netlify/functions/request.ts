@@ -6,6 +6,10 @@ import { validateRequestBody } from './_validate';
 
 const generateRequestId = (): string => crypto.randomUUID().slice(0, 8);
 
+// Keep PII-free: only safe, non-identifying keys (requestId, trackId) belong here.
+const formatLogContext = (requestId: string, trackId: string): string =>
+  `(requestId=${requestId} trackId=${trackId})`;
+
 const jsonResponse = (
   statusCode: number,
   payload: Record<string, unknown>,
@@ -122,7 +126,7 @@ export const handler: Handler = async (event) => {
     formConfig = deriveFormResponseConfig();
   } catch (configError) {
     console.error(
-      `[request] Google Form configuration error (requestId=${requestId}):`,
+      `[request] Google Form configuration error ${formatLogContext(requestId, song.id)}:`,
       configError
     );
     return jsonResponse(500, {
@@ -155,7 +159,7 @@ export const handler: Handler = async (event) => {
     });
   } catch (fetchError) {
     console.error(
-      `${classifyFetchError(fetchError)} (requestId=${requestId})`,
+      `${classifyFetchError(fetchError)} ${formatLogContext(requestId, song.id)}`,
       fetchError
     );
     return jsonResponse(502, {
@@ -166,7 +170,7 @@ export const handler: Handler = async (event) => {
 
   if (!response.ok) {
     console.error(
-      `[request] Google Form responded with status ${response.status} (requestId=${requestId})`
+      `[request] Google Form responded with status ${response.status} ${formatLogContext(requestId, song.id)}`
     );
     return jsonResponse(502, {
       error: `Google Form responded with status ${response.status}`,
