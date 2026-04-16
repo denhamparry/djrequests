@@ -1,6 +1,6 @@
 import type { MouseEvent } from 'react';
 
-export type PreviewState = 'idle' | 'loading' | 'playing';
+export type PreviewState = 'idle' | 'loading' | 'playing' | 'error';
 
 type Props = {
   state: PreviewState;
@@ -14,11 +14,16 @@ function PreviewButton({ state, trackLabel, onClick }: Props) {
     onClick();
   };
 
+  const ariaLabel =
+    state === 'error'
+      ? `Preview failed for ${trackLabel}, tap to retry`
+      : `Preview ${trackLabel}`;
+
   return (
     <button
       type="button"
       className="preview-button"
-      aria-label={`Preview ${trackLabel}`}
+      aria-label={ariaLabel}
       aria-pressed={state === 'playing'}
       data-state={state}
       onClick={handleClick}
@@ -53,6 +58,21 @@ function PreviewButton({ state, trackLabel, onClick }: Props) {
         >
           <rect x="7" y="6" width="3.5" height="12" rx="1" fill="currentColor" />
           <rect x="13.5" y="6" width="3.5" height="12" rx="1" fill="currentColor" />
+        </svg>
+      ) : state === 'error' ? (
+        <svg
+          viewBox="0 0 24 24"
+          width="20"
+          height="20"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path
+            d="M12 3 2.5 20h19L12 3Zm0 5.5 6.5 11h-13L12 8.5Z"
+            fill="currentColor"
+          />
+          <rect x="11" y="11" width="2" height="5" rx="1" fill="currentColor" />
+          <rect x="11" y="17" width="2" height="2" rx="1" fill="currentColor" />
         </svg>
       ) : (
         <svg

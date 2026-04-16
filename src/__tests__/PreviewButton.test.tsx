@@ -159,6 +159,89 @@ describe('Preview button', () => {
     expect(pauseSpy).toHaveBeenCalled();
   });
 
+  it('shows error state when play() rejects with a non-AbortError', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    playSpy.mockImplementation(function () {
+      const err = new Error('playback blocked');
+      err.name = 'NotAllowedError';
+      return Promise.reject(err);
+    });
+
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      server.use(http.get(searchEndpoint, () => HttpResponse.json({ tracks: [track()] })));
+      render(<App />);
+      await user.type(screen.getByLabelText(/Search songs/i), 'anything');
+      const btn = await screen.findByRole('button', {
+        name: /Preview Song One by Artist A/i
+      });
+
+      await user.click(btn);
+
+      await vi.waitFor(() => expect(btn).toHaveAttribute('data-state', 'error'));
+      expect(btn).toHaveAttribute('aria-label', expect.stringMatching(/tap to retry/i));
+
+      vi.advanceTimersByTime(2000);
+
+      await vi.waitFor(() => expect(btn).toHaveAttribute('data-state', 'idle'));
+      expect(btn).toHaveAttribute('aria-label', expect.stringMatching(/^Preview Song One/));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not flip to error state for AbortError', async () => {
+    playSpy.mockImplementation(function () {
+      const err = new Error('aborted');
+      err.name = 'AbortError';
+      return Promise.reject(err);
+    });
+
+    const { user } = await renderWithTracks([track()]);
+    const btn = screen.getByRole('button', { name: /Preview Song One by Artist A/i });
+
+    await user.click(btn);
+
+    // Give any microtasks a chance to flush.
+    await Promise.resolve();
+    expect(btn).not.toHaveAttribute('data-state', 'error');
+  });
+
+  it('clicking during the error window retries and clears the error', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let shouldFail = true;
+    playSpy.mockImplementation(function (this: HTMLMediaElement) {
+      if (shouldFail) {
+        const err = new Error('blocked');
+        err.name = 'NotAllowedError';
+        return Promise.reject(err);
+      }
+      queueMicrotask(() => this.dispatchEvent(new Event('playing')));
+      return Promise.resolve();
+    });
+
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      server.use(http.get(searchEndpoint, () => HttpResponse.json({ tracks: [track()] })));
+      render(<App />);
+      await user.type(screen.getByLabelText(/Search songs/i), 'anything');
+      const btn = await screen.findByRole('button', {
+        name: /Preview Song One by Artist A/i
+      });
+
+      await user.click(btn);
+      await vi.waitFor(() => expect(btn).toHaveAttribute('data-state', 'error'));
+
+      shouldFail = false;
+      await user.click(btn);
+
+      await vi.waitFor(() => expect(btn).toHaveAttribute('aria-pressed', 'true'));
+      expect(btn).toHaveAttribute('data-state', 'playing');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('clears the loading spinner after the safety timeout fires', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     playSpy.mockImplementation(function () {

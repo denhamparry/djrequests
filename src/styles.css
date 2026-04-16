@@ -150,6 +150,11 @@ input {
   background: rgba(15, 118, 110, 0.7);
 }
 
+.preview-button[data-state='error'] {
+  background: rgba(153, 27, 27, 0.7);
+  color: #fee2e2;
+}
+
 .preview-spinner {
   animation: preview-spin 0.9s linear infinite;
 }
