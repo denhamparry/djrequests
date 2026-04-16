@@ -45,7 +45,6 @@ test('smoke: user can search and prepare a song request', async ({ page }) => {
 
   await page.goto('/');
 
-  await page.fill('input[aria-label="Your name"]', 'Avery');
   await page.fill('input[aria-label="Search songs"]', 'digital love');
   await page.waitForTimeout(400);
 
@@ -53,7 +52,12 @@ test('smoke: user can search and prepare a song request', async ({ page }) => {
   await expect(resultCard).toBeVisible();
   await expect(resultCard.getByText('Daft Punk • Discovery')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Request "Digital Love"' }).click();
+  const requestButton = page.getByRole('button', { name: 'Request "Digital Love"' });
+  await expect(requestButton).toBeDisabled();
+
+  await page.fill('input[aria-label="Your name"]', 'Avery');
+
+  await requestButton.click();
 
   await expect(
     page.getByText('Request for "Digital Love" sent to the DJ queue.')
