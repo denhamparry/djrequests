@@ -6,6 +6,7 @@ import type { Song } from '../shared/types';
 import squirrelsImage from '../squirrels.jpeg';
 
 const SUBMIT_COOLDOWN_MS = 3000;
+const PREVIEW_LOADING_TIMEOUT_MS = 8000;
 
 function App() {
   const { query, setQuery, results, status, message, error } = useSongSearch();
@@ -21,23 +22,44 @@ function App() {
   const [loadingSongId, setLoadingSongId] = useState<string | null>(null);
   const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const loadingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const trimmedName = requesterName.trim();
   const hasName = trimmedName.length > 0;
+
+  const clearLoadingTimer = () => {
+    if (loadingTimer.current) {
+      clearTimeout(loadingTimer.current);
+      loadingTimer.current = null;
+    }
+  };
+
+  const resetPreviewState = () => {
+    clearLoadingTimer();
+    setPlayingSongId(null);
+    setLoadingSongId(null);
+  };
 
   const ensureAudio = (): HTMLAudioElement => {
     if (audioRef.current) return audioRef.current;
     const audio = new Audio();
     audio.preload = 'none';
-    audio.addEventListener('playing', () => setLoadingSongId(null));
-    audio.addEventListener('ended', () => {
-      setPlayingSongId(null);
+    audio.addEventListener('playing', () => {
+      clearLoadingTimer();
       setLoadingSongId(null);
     });
-    audio.addEventListener('pause', () => setLoadingSongId(null));
-    audio.addEventListener('error', () => {
-      setPlayingSongId(null);
+    audio.addEventListener('ended', resetPreviewState);
+    audio.addEventListener('pause', () => {
+      clearLoadingTimer();
       setLoadingSongId(null);
+    });
+    audio.addEventListener('error', resetPreviewState);
+    // `stalled` fires when the browser is trying to fetch media data but
+    // cannot make progress. The load itself is not aborted, so we pause
+    // explicitly to stop the buffering attempt and return the UI to idle.
+    audio.addEventListener('stalled', () => {
+      audio.pause();
+      resetPreviewState();
     });
     audioRef.current = audio;
     return audio;
@@ -49,8 +71,7 @@ function App() {
 
     if (playingSongId === song.id) {
       audio.pause();
-      setPlayingSongId(null);
-      setLoadingSongId(null);
+      resetPreviewState();
       return;
     }
 
@@ -58,10 +79,18 @@ function App() {
     audio.src = song.previewUrl;
     setPlayingSongId(song.id);
     setLoadingSongId(song.id);
-    audio.play().catch((err: unknown) => {
-      if (err instanceof Error && err.name === 'AbortError') return;
+
+    clearLoadingTimer();
+    loadingTimer.current = setTimeout(() => {
+      loadingTimer.current = null;
+      audio.pause();
       setPlayingSongId(null);
       setLoadingSongId(null);
+    }, PREVIEW_LOADING_TIMEOUT_MS);
+
+    audio.play().catch((err: unknown) => {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      resetPreviewState();
       if (err instanceof Error) {
         console.warn('Preview playback failed:', err.message);
       }
@@ -71,6 +100,7 @@ function App() {
   useEffect(
     () => () => {
       if (cooldownTimer.current) clearTimeout(cooldownTimer.current);
+      clearLoadingTimer();
       const audio = audioRef.current;
       if (audio) {
         audio.pause();
@@ -86,8 +116,7 @@ function App() {
     const stillPresent = results.some((song) => song.id === playingSongId);
     if (!stillPresent) {
       audioRef.current?.pause();
-      setPlayingSongId(null);
-      setLoadingSongId(null);
+      resetPreviewState();
     }
   }, [results, playingSongId]);
 

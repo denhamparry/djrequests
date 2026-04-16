@@ -130,4 +130,59 @@ describe('Preview button', () => {
 
     expect(requestSpy).not.toHaveBeenCalled();
   });
+
+  it('clears the loading spinner when the audio stalls', async () => {
+    // Stub play so it resolves but does NOT dispatch `playing` — simulates a
+    // network that gets the request off but never delivers media data.
+    playSpy.mockImplementation(function () {
+      return Promise.resolve();
+    });
+
+    const { user } = await renderWithTracks([track()]);
+    const btn = screen.getByRole('button', { name: /Preview Song One by Artist A/i });
+
+    await user.click(btn);
+    await vi.waitFor(() => expect(btn).toHaveAttribute('data-state', 'loading'));
+
+    // Simulate the `stalled` event on the shared audio element. The
+    // component should pause and reset both playing + loading state.
+    const audio = document.querySelector('audio') as HTMLAudioElement | null;
+    // jsdom does not mount the <audio> in the DOM since it's created via
+    // `new Audio()`; we dispatch directly on the instance via the spy-captured
+    // `this` binding. Fall back to finding any media element via a stalled
+    // event dispatched to each HTMLMediaElement the spies have seen.
+    const stallTarget = audio ?? (playSpy.mock.contexts[0] as HTMLMediaElement);
+    stallTarget.dispatchEvent(new Event('stalled'));
+
+    await vi.waitFor(() => expect(btn).toHaveAttribute('aria-pressed', 'false'));
+    expect(btn).toHaveAttribute('data-state', 'idle');
+    expect(pauseSpy).toHaveBeenCalled();
+  });
+
+  it('clears the loading spinner after the safety timeout fires', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    playSpy.mockImplementation(function () {
+      return Promise.resolve();
+    });
+
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      server.use(http.get(searchEndpoint, () => HttpResponse.json({ tracks: [track()] })));
+      render(<App />);
+      await user.type(screen.getByLabelText(/Search songs/i), 'anything');
+      const btn = await screen.findByRole('button', {
+        name: /Preview Song One by Artist A/i
+      });
+
+      await user.click(btn);
+      await vi.waitFor(() => expect(btn).toHaveAttribute('data-state', 'loading'));
+
+      vi.advanceTimersByTime(8000);
+
+      await vi.waitFor(() => expect(btn).toHaveAttribute('aria-pressed', 'false'));
+      expect(btn).toHaveAttribute('data-state', 'idle');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

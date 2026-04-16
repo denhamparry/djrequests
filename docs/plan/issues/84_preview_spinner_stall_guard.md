@@ -1,7 +1,7 @@
 # GitHub Issue #84: fix(ui): preview spinner may stall if media events do not fire on slow networks
 
 **Issue:** [#84](https://github.com/denhamparry/djrequests/issues/84)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -210,12 +210,12 @@ observe the spinner clears within 8 s even if no playback starts.
 
 ### Required Changes
 
-- [ ] On `stalled` or the 8 s timeout firing, call `audio.pause()` and
+- [x] On `stalled` or the 8 s timeout firing, call `audio.pause()` and
       clear BOTH `loadingSongId` and `playingSongId`. Clearing only
       `loadingSongId` would leave the button showing the pause icon
       (`aria-pressed="true"`) even though no audio is playing — worse
       UX than a stuck spinner.
-- [ ] `clearLoadingTimer()` must be called in every path that
+- [x] `clearLoadingTimer()` must be called in every path that
       transitions `loadingSongId` away from a song id — including the
       toggle-off pause branch of `togglePreview`.
 
