@@ -32,7 +32,16 @@ describe('submitSongRequest', () => {
     });
 
     const result = await submitSongRequest(song, requester);
+
     expect(result).toEqual({ message: 'Song request submitted successfully.' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/.netlify/functions/request');
+    expect(init).toMatchObject({
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    expect(init.body).toBe(JSON.stringify({ song, requester }));
   });
 
   it('throws RequestError with requestId when the function returns one', async () => {
