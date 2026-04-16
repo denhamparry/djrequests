@@ -212,6 +212,10 @@ To request a code review from Claude on any PR:
 - **Doc ID comes from a Script Property** - Set `GOOGLE_DOC_ID` under Project Settings → Script Properties before first form submission. If unset or blank, `onFormSubmit` throws a clear error visible in the Executions log
 - **No local testing** - Use Vitest to test `format.ts` logic separately; Apps Script runtime can only be tested by submitting forms
 
+### Vitest on Node 22+
+
+- Node 22+ emits a benign `ExperimentalWarning: --localstorage-file was provided without a valid path` from jsdom 29's WebStorage shim. The `test:unit` / `test:watch` scripts set `NODE_OPTIONS=--no-warnings=ExperimentalWarning` to keep output clean while preserving `DeprecationWarning`s.
+
 ## Environment Variables
 
 ### Required
