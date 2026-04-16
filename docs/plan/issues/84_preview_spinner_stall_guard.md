@@ -1,7 +1,7 @@
 # GitHub Issue #84: fix(ui): preview spinner may stall if media events do not fire on slow networks
 
 **Issue:** [#84](https://github.com/denhamparry/djrequests/issues/84)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -197,3 +197,40 @@ observe the spinner clears within 8 s even if no playback starts.
 2. **Abort the load on timeout** — too aggressive; `stalled` can be
    transient. ❌
 3. **Both `stalled` + 8 s timeout** — chosen. ✅
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved (with one required UX correction)
+- **Confidence Level:** High
+
+### Required Changes
+
+- [ ] On `stalled` or the 8 s timeout firing, call `audio.pause()` and
+      clear BOTH `loadingSongId` and `playingSongId`. Clearing only
+      `loadingSongId` would leave the button showing the pause icon
+      (`aria-pressed="true"`) even though no audio is playing — worse
+      UX than a stuck spinner.
+- [ ] `clearLoadingTimer()` must be called in every path that
+      transitions `loadingSongId` away from a song id — including the
+      toggle-off pause branch of `togglePreview`.
+
+### Optional Improvements
+
+- [ ] Add a test exercising rapid-toggle timer cleanup (click A → click
+      B → click B off) to pin the invariant that only one timer is
+      ever alive.
+
+### Verification Checklist
+
+- [x] Root cause addressed (events don't fire → two independent guards)
+- [x] File paths / line numbers verified
+- [x] Test strategy covers new guards
+- [x] No security implications
+- [x] Performance: trivial
+
+**Status change:** Planning → Reviewed (Approved)
