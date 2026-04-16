@@ -182,6 +182,32 @@ describe('request function', () => {
     );
   });
 
+  it('logs config errors server-side and returns a generic client message', async () => {
+    delete process.env.GOOGLE_FORM_URL;
+    delete process.env.VITE_GOOGLE_FORM_URL;
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const response = await handler(
+      makeEvent({
+        body: JSON.stringify({
+          song: { id: '1', title: 'T', artist: 'A' },
+          requester: { name: 'Avery' }
+        })
+      }),
+      {} as any
+    );
+
+    expect(response.statusCode).toBe(500);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Request service is temporarily unavailable.');
+    expect(body.error).not.toMatch(/GOOGLE_FORM_URL/);
+    expect(body.error).not.toMatch(/VITE_GOOGLE_FORM_URL/);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    errorSpy.mockRestore();
+  });
+
   it('returns error when Google Form submission fails', async () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 500 });
 

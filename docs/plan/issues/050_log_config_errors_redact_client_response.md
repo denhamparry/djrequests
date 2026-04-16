@@ -1,7 +1,7 @@
 # GitHub Issue #50: log config errors server-side and redact details from client response
 
 **Issue:** [#50](https://github.com/denhamparry/djrequests/issues/50)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Branch:** denhamparry.co.uk/feat/gh-issue-050
 **Date:** 2026-04-16
 
