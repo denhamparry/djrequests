@@ -1,7 +1,7 @@
 # GitHub Issue #45: bound rate-limit Map with LRU / TTL sweep
 
 **Issue:** [#45](https://github.com/denhamparry/djrequests/issues/45)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -221,3 +221,69 @@ behaviour for ≤ `MAX_KEYS` clients is identical.
 - Keep `MAX_KEYS` generous (10 000) so legitimate traffic never trips it; the
   sweep is the primary defence.
 - Document the in-memory, per-instance nature of the limiter unchanged.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+**Original Plan Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation
+
+### Strengths
+
+- Scope is tightly matched to the issue — no gold-plating.
+- Relies on spec-guaranteed `Map` insertion-order iteration rather than a
+  bespoke LRU structure; simpler and correct.
+- Keeps the public API (`checkRateLimit`, `resetRateLimit`,
+  `resolveClientKey`) unchanged — existing tests act as a regression gate.
+- Opportunistic sweep (no `setInterval`) stays compatible with the
+  stateless-function model and the existing injected-`now` test style.
+
+### Gaps Identified
+
+1. **Gap 1:** Plan does not explicitly state the order of operations inside
+   `checkRateLimit` (sweep before or after the existing read?).
+   - **Impact:** Low — functionally equivalent either way, but worth pinning
+     down to avoid churn during implementation.
+   - **Recommendation:** During implementation, run `sweep(now)` at the top
+     of `checkRateLimit` so the subsequent `hits.get(key)` reflects the
+     post-sweep state.
+
+### Edge Cases Not Covered
+
+1. **Non-monotonic injected `now` in tests:** a test that calls `checkRateLimit`
+   with a later `now` then an earlier one could skip a sweep due to
+   `lastSweepAt` bookkeeping.
+   - **Current Plan:** Not discussed.
+   - **Recommendation:** Keep test timestamps monotonic (matches existing
+     tests); no code change required.
+
+### Required Changes
+
+None blocking.
+
+### Optional Improvements
+
+- [ ] In the implementation, use `hits.delete(key); hits.set(key, existing)`
+      unconditionally (delete is a no-op on absent keys) to keep the branch
+      simple.
+- [ ] Consider inlining the sweep size-check rather than a second pass if
+      profiling ever shows it matters; for `MAX_KEYS = 10_000` it will not.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate
+- [x] Security implications considered (memory DoS vector closed)
+- [x] Performance impact assessed (O(n) sweep amortised per WINDOW_MS)
+- [x] Test strategy covers critical paths and edge cases
+- [x] Documentation updates planned (code comments)
+- [x] Related issues/dependencies identified (#32)
+- [x] Breaking changes documented (none — API unchanged)
