@@ -20,10 +20,20 @@ type SearchResponse = {
   }>;
   message?: string;
   error?: string;
+  code?: 'upstream_unavailable';
 };
 
 const USER_AGENT = 'djrequests/1.0 (+https://github.com/denhamparry/djrequests)';
 const ITUNES_SEARCH_ENDPOINT = 'https://itunes.apple.com/search';
+
+// iTunes Search API has a documented intermittent failure mode where it
+// returns HTTP 404 with a `[newNullResponse]` HTML body instead of a real
+// response. It is transient, so we retry 404 and 5xx before giving up.
+// We never retry 429 — that would amplify a throttle.
+const MAX_ATTEMPTS = 3;
+const BACKOFF_MS = [250, 500];
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const jsonResponse = (statusCode: number, payload: SearchResponse) => ({
   statusCode,
@@ -34,6 +44,52 @@ const jsonResponse = (statusCode: number, payload: SearchResponse) => ({
   },
   body: JSON.stringify(payload)
 });
+
+type UpstreamOutcome =
+  | { kind: 'ok'; response: Response }
+  | { kind: 'throttled' }
+  | { kind: 'failed'; detail: string };
+
+async function fetchFromItunes(url: string): Promise<UpstreamOutcome> {
+  let lastDetail = 'unknown error';
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    let response: Response;
+
+    try {
+      response = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+    } catch (error) {
+      lastDetail = `network error: ${
+        error instanceof Error ? error.message : 'unknown'
+      }`;
+      if (attempt < MAX_ATTEMPTS - 1) {
+        await sleep(BACKOFF_MS[attempt]);
+        continue;
+      }
+      return { kind: 'failed', detail: lastDetail };
+    }
+
+    if (response.status === 429) {
+      return { kind: 'throttled' };
+    }
+
+    if (response.ok) {
+      return { kind: 'ok', response };
+    }
+
+    const retryable = response.status === 404 || response.status >= 500;
+    lastDetail = `iTunes Search API returned status ${response.status}`;
+
+    if (retryable && attempt < MAX_ATTEMPTS - 1) {
+      await sleep(BACKOFF_MS[attempt]);
+      continue;
+    }
+
+    return { kind: 'failed', detail: lastDetail };
+  }
+
+  return { kind: 'failed', detail: lastDetail };
+}
 
 export const handler: Handler = async (event) => {
   const term = event.queryStringParameters?.term?.trim();
@@ -51,38 +107,26 @@ export const handler: Handler = async (event) => {
     limit: '25'
   });
 
-  let response: Response;
+  const outcome = await fetchFromItunes(
+    `${ITUNES_SEARCH_ENDPOINT}?${params.toString()}`
+  );
 
-  try {
-    response = await fetch(`${ITUNES_SEARCH_ENDPOINT}?${params.toString()}`, {
-      headers: {
-        'User-Agent': USER_AGENT
-      }
-    });
-  } catch (error) {
-    return jsonResponse(502, {
-      tracks: [],
-      error: `Failed to reach iTunes Search API: ${
-        error instanceof Error ? error.message : 'Unknown error'
-      }`
-    });
-  }
-
-  if (response.status === 429) {
+  if (outcome.kind === 'throttled') {
     return jsonResponse(503, {
       tracks: [],
       error: 'The iTunes Search API rate limit has been reached. Please retry shortly.'
     });
   }
 
-  if (!response.ok) {
-    return jsonResponse(502, {
+  if (outcome.kind === 'failed') {
+    return jsonResponse(503, {
       tracks: [],
-      error: `iTunes Search API returned status ${response.status}`
+      error: outcome.detail,
+      code: 'upstream_unavailable'
     });
   }
 
-  const payload = (await response.json()) as { results?: ITunesTrack[] };
+  const payload = (await outcome.response.json()) as { results?: ITunesTrack[] };
   const results = payload.results ?? [];
 
   if (results.length === 0) {

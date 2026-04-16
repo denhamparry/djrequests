@@ -63,7 +63,11 @@ export function useSongSearch() {
         const payload = await response.json();
 
         if (!response.ok) {
-          throw new Error(payload?.error ?? 'Search failed');
+          const friendly =
+            payload?.code === 'upstream_unavailable'
+              ? 'Search is temporarily unavailable — please try again in a moment.'
+              : null;
+          throw new Error(friendly ?? payload?.error ?? 'Search failed');
         }
 
         const tracks = Array.isArray(payload?.tracks) ? payload.tracks : [];

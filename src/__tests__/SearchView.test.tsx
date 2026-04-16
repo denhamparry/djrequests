@@ -67,6 +67,32 @@ describe('Song search experience', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows a friendly outage message when the upstream is unavailable', async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.get(searchEndpoint, () =>
+        HttpResponse.json(
+          {
+            tracks: [],
+            error: 'iTunes Search API returned status 404',
+            code: 'upstream_unavailable'
+          },
+          { status: 503 }
+        )
+      )
+    );
+
+    render(<App />);
+
+    await user.type(screen.getByLabelText(/Search songs/i), 'beatles');
+
+    expect(
+      await screen.findByText(/Search is temporarily unavailable/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/status 404/i)).not.toBeInTheDocument();
+  });
+
   it('shows a helpful message when there are no results', async () => {
     const user = userEvent.setup();
 
