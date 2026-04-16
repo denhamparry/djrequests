@@ -1,7 +1,7 @@
 # GitHub Issue #36: Song search returns 404 on production (iTunes Search API upstream failure)
 
 **Issue:** [#36](https://github.com/denhamparry/djrequests/issues/36)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -316,3 +316,139 @@ npm run test:unit
   tolerance for a debounced search.
 - Never retry 429 — retrying a throttle makes things worse.
 - Use fake timers in tests so backoff delays don't slow the suite.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+**Original Plan Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation
+
+### Strengths
+
+- **Scope discipline.** The plan explicitly defers suggested actions 1
+  (investigation), 3 (fallback provider), and 5 (uptime monitoring) to
+  separate issues. This keeps the PR reviewable and focused on the observable
+  bug.
+- **Correct root-cause framing.** The `[newNullResponse]` 404 is an upstream
+  transient, not a semantic not-found. Retry is the right mitigation; the
+  plan states this clearly.
+- **Stable client/server contract.** Adding a `code` field to error responses
+  avoids fragile string-matching on the frontend and leaves a seam for
+  future error categories without breaking existing consumers.
+- **Preserves existing behaviour.** The plan is explicit that 429 → 503 must
+  not be retried, and that the 400 / 200 / empty-results paths are unchanged.
+- **Testable design.** Retry logic lives in a pure helper inside `search.ts`
+  that can be exercised via the existing vi.stubGlobal('fetch') pattern;
+  fake timers keep the suite fast.
+
+### Gaps Identified
+
+1. **Gap: total-latency budget not stated against the function timeout.**
+   - **Impact:** Low
+   - **Recommendation:** In the retry section, note that worst case is
+     ~750ms backoff + 3 upstream round trips (≈3–4s on a slow Apple) —
+     well inside Netlify's 26s function timeout and acceptable for a
+     debounced search.
+
+2. **Gap: network-error retry in the `catch` branch lacks a test case in
+   Step 2 list.**
+   - **Impact:** Low
+   - **Recommendation:** Step 2 already says "network error once then 200"
+     — confirmed present. No change required; flagging for traceability.
+
+### Edge Cases Not Covered
+
+1. **Edge Case: client aborts mid-retry (user types another keystroke).**
+   - **Current Plan:** Doesn't discuss AbortController on the server
+     function.
+   - **Recommendation:** No action — the client hook already discards
+     stale responses via `requestIdRef`, and serverless functions will
+     simply complete and be ignored. Worth mentioning in implementation
+     notes so a future reader knows this was considered.
+
+2. **Edge Case: Apple returns an HTTP 200 with an HTML error body (not
+   JSON).**
+   - **Current Plan:** Assumes `response.json()` succeeds on `ok`.
+   - **Recommendation:** The current code already has this bug (will throw
+     on parse). Not introduced by this plan and explicitly out of scope —
+     track as a separate issue if it becomes observed.
+
+### Alternatives Considered (Reviewer)
+
+1. **Alternative: client-side retry in `useSongSearch`.**
+   - **Pros:** No function changes; simpler deployment.
+   - **Cons:** Duplicates the logic on every consumer, wastes the user's
+     network budget (each retry is a full CORS round trip), and blocks
+     the debounce/stale-response guard from doing its job.
+   - **Verdict:** Server-side retry is strictly better — the plan's choice
+     is correct.
+
+2. **Alternative: retry only on 5xx, not on 404.**
+   - **Pros:** 404 is semantically "not found" — retrying feels wrong.
+   - **Cons:** The observed failure mode is specifically HTTP 404 with the
+     `[newNullResponse]` body; a 5xx-only policy would not fix the issue.
+   - **Verdict:** Retrying 404 is justified by the upstream's documented
+     misbehaviour. The plan's choice is correct.
+
+### Risks and Concerns
+
+1. **Risk: retry amplifies load when Apple is genuinely down.**
+   - **Likelihood:** Medium (Apple outages do happen)
+   - **Impact:** Low (3 attempts per user query; no stampede protection
+     needed at this traffic level)
+   - **Mitigation:** Keep retry count bounded at 2 retries / 3 attempts
+     total as planned. If traffic grows, revisit with a circuit breaker.
+
+2. **Risk: the hidden debounce + retry makes failures slow and silent.**
+   - **Likelihood:** Medium
+   - **Impact:** Low
+   - **Mitigation:** The friendly client-side message (Step 3) addresses
+     this — after the server exhausts retries, the UI shows an actionable
+     "try again in a moment" rather than a cryptic status code.
+
+### Required Changes
+
+**Changes that must be made before implementation:**
+
+- None — plan is approved as written.
+
+### Optional Improvements
+
+**Suggestions that would enhance the plan but aren't strictly required:**
+
+- [ ] In `search.ts`, add a short inline comment pointing at the
+      `[newNullResponse]` issue so a future maintainer doesn't "clean up"
+      the 404-retry as a bug.
+- [ ] Consider placing the hook test from Step 4 in the existing
+      `src/__tests__/SearchView.test.tsx` (integration-style with MSW) rather
+      than a new hook-only test file — lower file count, same coverage.
+- [ ] Emit the final failure status as **503** (Service Unavailable) rather
+      than 502 (Bad Gateway). 503 conveys "try again" more clearly to
+      generic HTTP clients; the existing 429 path already uses 503. Not
+      required — 502 is semantically defensible — but 503 is more
+      consistent.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered (scope-limited to
+      actions 2 and 4; others explicitly deferred)
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate (verified against
+      `search.ts`, `useSongSearch.ts`, `App.tsx`, existing tests)
+- [x] Security implications considered (no new attack surface;
+      retry-on-429 explicitly excluded to prevent throttle abuse)
+- [x] Performance impact assessed (bounded ~1s backoff budget)
+- [x] Test strategy covers critical paths and edge cases (retry-succeeds,
+      retry-exhausted, 429-no-retry, network-error-retry, friendly-message
+      mapping)
+- [x] Documentation updates planned (plan itself is the record)
+- [x] Related issues/dependencies identified (actions 1, 3, 5 explicitly
+      out of scope)
+- [x] Breaking changes documented (none — `code` is additive)
