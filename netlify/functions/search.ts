@@ -30,8 +30,11 @@ const ITUNES_SEARCH_ENDPOINT = 'https://itunes.apple.com/search';
 // returns HTTP 404 with a `[newNullResponse]` HTML body instead of a real
 // response. It is transient, so we retry 404 and 5xx before giving up.
 // We never retry 429 — that would amplify a throttle.
-const MAX_ATTEMPTS = 3;
-const BACKOFF_MS = [250, 500];
+//
+// MAX_ATTEMPTS is derived from BACKOFF_MS so that tuning the retry count is
+// a single-source edit: add or remove a delay and the attempt count follows.
+const BACKOFF_MS = [250, 500] as const;
+const MAX_ATTEMPTS = BACKOFF_MS.length + 1;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
