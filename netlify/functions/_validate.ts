@@ -1,17 +1,17 @@
-export type ValidatedSong = {
-  id: string;
-  title: string;
-  artist: string;
-  album: string | null;
-  artworkUrl: string | null;
-  previewUrl: string | null;
-};
+import type { Song } from '../../shared/types';
 
-export type ValidatedRequester = {
-  name: string;
-  dedication: string | null;
-  contact: string | null;
-};
+type Brand<T, B extends string> = T & { readonly __brand: B };
+
+export type ValidatedSong = Brand<Song, 'ValidatedSong'>;
+
+export type ValidatedRequester = Brand<
+  {
+    name: string;
+    dedication: string | null;
+    contact: string | null;
+  },
+  'ValidatedRequester'
+>;
 
 export type ValidatedRequest = {
   song: ValidatedSong;
@@ -97,12 +97,12 @@ export const validateRequestBody = (raw: unknown): ValidationResult => {
         album,
         artworkUrl,
         previewUrl
-      },
+      } as ValidatedSong,
       requester: {
         name,
         dedication,
         contact
-      }
+      } as ValidatedRequester
     }
   };
 };

@@ -156,4 +156,24 @@ describe('validateRequestBody', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toMatch(/song\.album must be a string/);
   });
+
+  it('brand prevents raw Song from satisfying ValidatedSong (type-level)', () => {
+    // Compile-time guard: if the brand is ever removed, @ts-expect-error
+    // becomes an unused-directive error and this test fails to compile.
+    const _probe = (): void => {
+      const raw = {
+        id: '1',
+        title: 't',
+        artist: 'a',
+        album: null,
+        artworkUrl: null,
+        previewUrl: null
+      };
+      // @ts-expect-error raw Song is not a ValidatedSong without validation
+      const _v: import('../_validate').ValidatedSong = raw;
+      void _v;
+    };
+    void _probe;
+    expect(true).toBe(true);
+  });
 });
