@@ -105,8 +105,9 @@ export const handler: Handler = async (event) => {
   try {
     formConfig = deriveFormResponseConfig();
   } catch (configError) {
+    console.error('[request] Google Form configuration error:', configError);
     return jsonResponse(500, {
-      error: configError instanceof Error ? configError.message : 'Configuration error'
+      error: 'Request service is temporarily unavailable.'
     });
   }
 
