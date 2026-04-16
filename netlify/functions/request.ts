@@ -6,9 +6,18 @@ import { validateRequestBody } from './_validate';
 
 const generateRequestId = (): string => crypto.randomUUID().slice(0, 8);
 
+// Cap length and strip chars outside a strict charset so attacker-controlled
+// song.id values cannot inject newlines/ANSI/etc into structured log lines.
+const MAX_LOG_TRACK_ID = 64;
+const LOG_TRACK_ID_SAFE = /^[a-zA-Z0-9._-]+$/;
+const sanitiseTrackIdForLog = (trackId: string): string => {
+  const capped = trackId.slice(0, MAX_LOG_TRACK_ID);
+  return LOG_TRACK_ID_SAFE.test(capped) ? capped : capped.replace(/[^a-zA-Z0-9._-]/g, '_');
+};
+
 // Keep PII-free: only safe, non-identifying keys (requestId, trackId) belong here.
 const formatLogContext = (requestId: string, trackId: string): string =>
-  `(requestId=${requestId} trackId=${trackId})`;
+  `(requestId=${requestId} trackId=${sanitiseTrackIdForLog(trackId)})`;
 
 const jsonResponse = (
   statusCode: number,

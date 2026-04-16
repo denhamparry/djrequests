@@ -302,31 +302,104 @@ describe('request function', () => {
     errorSpy.mockRestore();
   });
 
-  it('does not include requester PII in server-side error logs', async () => {
-    fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'));
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const piiScenarios: Array<{ scenario: string; arrange: () => void }> = [
+    {
+      scenario: 'config-error branch',
+      arrange: () => {
+        delete process.env.GOOGLE_FORM_URL;
+        delete process.env.VITE_GOOGLE_FORM_URL;
+      }
+    },
+    {
+      scenario: 'fetch network-error branch',
+      arrange: () => {
+        fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'));
+      }
+    },
+    {
+      scenario: 'upstream non-2xx branch',
+      arrange: () => {
+        fetchMock.mockResolvedValueOnce({ ok: false, status: 500 });
+      }
+    }
+  ];
 
-    await handler(
-      makeEvent({
-        body: JSON.stringify({
-          song: { id: '99', title: 'T', artist: 'A' },
-          requester: {
-            name: 'Avery Secret',
-            contact: 'avery@private.test',
-            dedication: 'personal message'
-          }
-        })
-      }),
-      {} as any
-    );
+  it.each(piiScenarios)(
+    'does not include requester PII in server-side error logs ($scenario)',
+    async ({ arrange }) => {
+      arrange();
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    const logLine = errorSpy.mock.calls[0][0] as string;
-    expect(logLine).toContain('trackId=99');
-    expect(logLine).not.toMatch(/Avery Secret/);
-    expect(logLine).not.toMatch(/avery@private.test/);
-    expect(logLine).not.toMatch(/personal message/);
+      await handler(
+        makeEvent({
+          body: JSON.stringify({
+            song: { id: '99', title: 'T', artist: 'A' },
+            requester: {
+              name: 'Avery Secret',
+              contact: 'avery@private.test',
+              dedication: 'personal message'
+            }
+          })
+        }),
+        {} as any
+      );
 
-    errorSpy.mockRestore();
+      const logLine = errorSpy.mock.calls[0][0] as string;
+      expect(logLine).toContain('trackId=99');
+      expect(logLine).not.toMatch(/Avery Secret/);
+      expect(logLine).not.toMatch(/avery@private.test/);
+      expect(logLine).not.toMatch(/personal message/);
+
+      errorSpy.mockRestore();
+    }
+  );
+
+  describe('trackId log sanitisation', () => {
+    const submit = async (trackId: string) => {
+      fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'));
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      await handler(
+        makeEvent({
+          body: JSON.stringify({
+            song: { id: trackId, title: 'T', artist: 'A' },
+            requester: { name: 'Avery' }
+          })
+        }),
+        {} as any
+      );
+      const logLine = errorSpy.mock.calls[0][0] as string;
+      errorSpy.mockRestore();
+      return logLine;
+    };
+
+    it('passes iTunes-style numeric IDs through unchanged', async () => {
+      const logLine = await submit('1234567890');
+      expect(logLine).toContain('trackId=1234567890');
+    });
+
+    it('caps trackId at 64 characters in logs', async () => {
+      const longId = 'a'.repeat(200);
+      const logLine = await submit(longId);
+      const match = logLine.match(/trackId=([^)]+)\)/);
+      expect(match).not.toBeNull();
+      expect(match![1]).toHaveLength(64);
+      expect(match![1]).toBe('a'.repeat(64));
+    });
+
+    it('replaces newlines and structural chars with underscores', async () => {
+      const logLine = await submit('1\n[request] spoof');
+      expect(logLine).toContain('trackId=1__request__spoof');
+      // The sanitised log line must not contain a literal newline between the
+      // opening `[request]` prefix and the trailing `)` of the context block.
+      const ctxMatch = logLine.match(/\(requestId=[^)]+\)/);
+      expect(ctxMatch).not.toBeNull();
+      expect(ctxMatch![0]).not.toMatch(/\n/);
+    });
+
+    it('replaces symbol chars outside the whitelist with underscores', async () => {
+      const logLine = await submit('x=y(z)');
+      expect(logLine).toContain('trackId=x_y_z_');
+    });
   });
 
   it('returns error when Google Form submission fails', async () => {
