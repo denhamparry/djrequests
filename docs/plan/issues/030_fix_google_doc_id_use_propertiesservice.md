@@ -1,7 +1,7 @@
 # GitHub Issue #30: Fix likely-incorrect Google Doc ID in Apps Script and move to PropertiesService
 
 **Issue:** [#30](https://github.com/denhamparry/djrequests/issues/30)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -266,3 +266,92 @@ error in Executions.
 - Keep Apps Script entry points thin; put testable logic in pure modules
   (already the pattern with `format.ts`).
 - Prefer explicit errors over silent fallbacks for required configuration.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+**Original Plan Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation
+
+### Strengths
+
+- Scope is tightly matched to the issue — no over-reach.
+- Keeps testable logic (`format.ts`) untouched; changes confined to the
+  Apps Script boundary, which is the right split.
+- Explicit-error-over-silent-fallback matches the project's stated principle
+  (avoid silent failures) and directly improves the Executions log signal.
+- Verified: `vite.config.ts` already includes
+  `apps-script/__tests__/**/*.test.ts` in the vitest `include` globs — no
+  config change needed for the new test file.
+- Verified: existing `declare const DocumentApp` pattern in `index.ts`
+  matches the proposed `declare const PropertiesService` shim.
+
+### Gaps Identified
+
+1. **Test-side type of `globalThis.PropertiesService`**
+   - **Impact:** Low
+   - **Recommendation:** In `__tests__/index.test.ts`, assign via
+     `(globalThis as unknown as { PropertiesService: ... }).PropertiesService = ...`
+     or similar, and clean up in `afterEach`. `declare const` is ambient
+     only; the test must set a runtime value on `globalThis` and should
+     reset it between tests to avoid cross-test leakage.
+
+### Edge Cases Not Covered
+
+1. **Whitespace-only property value** (e.g. someone pastes with a trailing
+   newline or sets the value to `" "`).
+   - **Current Plan:** Only checks truthiness (`!id`), so a
+     whitespace-only string would pass and then fail inside
+     `DocumentApp.openById` with a less-clear error.
+   - **Recommendation:** Treat whitespace-only as missing —
+     `if (!id || !id.trim()) throw …`. One extra check, clearer failure.
+
+### Alternative Approaches Considered
+
+1. **Read from environment variable via Apps Script `clasp` `.clasp.json`**
+   - **Pros:** Developer-local config.
+   - **Cons:** Apps Script runtime has no `process.env`; Script Properties
+     is the idiomatic mechanism.
+   - **Verdict:** Current plan is correct.
+
+### Risks and Concerns
+
+1. **No automated guard against re-introducing a hardcoded ID.**
+   - **Likelihood:** Low
+   - **Impact:** Low
+   - **Mitigation:** Not worth adding a lint rule for a 3-line accessor;
+     the new unit test implicitly asserts the accessor exists.
+
+### Required Changes
+
+_None that block implementation._
+
+### Optional Improvements
+
+- [ ] Trim-check the property value (treat whitespace-only as missing) — see
+      Edge Cases above.
+- [ ] In the test, reset `globalThis.PropertiesService` in `afterEach` so
+      tests don't leak state if the file grows.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered (verify, PropertiesService
+      lookup, clear error on unset, CLAUDE.md update, manual test step)
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate (verified against worktree)
+- [x] Security implications considered (no secret is actually stored; Doc ID
+      is not secret but config-level)
+- [x] Performance impact assessed (trivial — one `getProperty` call per
+      submission)
+- [x] Test strategy covers critical paths and edge cases (happy + missing)
+- [x] Documentation updates planned (CLAUDE.md Config Steps + Known Issues)
+- [x] Related issues/dependencies identified (none)
+- [x] Breaking changes documented (deployment requires setting Script
+      Property before first run — covered by the CLAUDE.md update)
