@@ -1,7 +1,7 @@
 # GitHub Issue #53: enhancement: assert disabled request button in e2e before typing name
 
 **Issue:** [#53](https://github.com/denhamparry/djrequests/issues/53)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -102,11 +102,11 @@ npm run test:e2e
 
 ## Success Criteria
 
-- [ ] `tests/e2e/request.spec.ts` asserts `toBeDisabled()` on the request button before the name is filled.
-- [ ] Name is filled _after_ the disabled assertion.
-- [ ] `npm run test:e2e` passes.
-- [ ] `npm run lint` passes.
-- [ ] Pre-commit hooks pass.
+- [x] `tests/e2e/request.spec.ts` asserts `toBeDisabled()` on the request button before the name is filled.
+- [x] Name is filled _after_ the disabled assertion.
+- [x] `npm run test:e2e` passes.
+- [x] `npm run lint` passes.
+- [x] Pre-commit hooks pass.
 
 ## Files Modified
 
