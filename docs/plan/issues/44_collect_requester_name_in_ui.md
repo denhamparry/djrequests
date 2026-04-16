@@ -1,7 +1,7 @@
 # GitHub Issue #44: Collect requester name in UI so backend can require it
 
 **Issue:** [#44](https://github.com/denhamparry/djrequests/issues/44)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -167,7 +167,43 @@ npm run test:unit -- netlify/functions/__tests__/request.test.ts
   renders, types a search, expects the request button to be disabled; then
   types a name and expects it to become enabled.
 
-### Step 5: Regression check with full test suite
+### Step 5: Update `request.test.ts`
+
+**File:** `netlify/functions/__tests__/request.test.ts`
+
+Several tests submit song payloads without a `requester.name`, which will
+now fail validation with 400 instead of hitting the Google Form stub. Add
+`requester: { name: 'Test' }` to these bodies:
+
+- "accepts a payload without a requester block" → rename/repurpose as
+  "accepts a payload with only requester.name" (or drop and replace with
+  a "rejects missing requester.name" test that expects 400).
+- "uses ALLOWED_ORIGIN for CORS header on responses and OPTIONS" — add
+  requester.name to the POST body so it still reaches the Google Form.
+- "returns error when Google Form submission fails" — add requester.name.
+- "returns 429 with Retry-After after 5 rapid submissions" — add
+  requester.name to the shared body.
+- "shares the fallback 'unknown' bucket" — add requester.name.
+
+Add a new test: "returns 400 when requester.name is missing" that asserts
+the error message is `requester.name is required`.
+
+### Step 6: Update `tests/e2e/request.spec.ts`
+
+**File:** `tests/e2e/request.spec.ts`
+
+The e2e smoke test currently clicks the request button without typing a
+name. With the new UI gate the button will be disabled. Update the test
+to fill the requester name input before clicking:
+
+```ts
+await page.fill('input[aria-label="Your name"]', 'Avery');
+```
+
+Also extend the request-route assertion to check
+`body.requester.name === 'Avery'`.
+
+### Step 7: Regression check with full test suite
 
 **Testing:**
 
@@ -231,7 +267,11 @@ installed; the test at `tests/e2e/request.spec.ts` may need a name typed.
    and add new ones for required name.
 4. `src/__tests__/SearchView.test.tsx` — type a name in submit test, add
    disabled-without-name test.
-5. `docs/plan/issues/44_collect_requester_name_in_ui.md` — this plan.
+5. `netlify/functions/__tests__/request.test.ts` — add `requester.name`
+   to payloads that don't have it; add new test for missing-name rejection.
+6. `tests/e2e/request.spec.ts` — fill the "Your name" input before
+   clicking request; assert requester.name in the intercepted POST body.
+7. `docs/plan/issues/44_collect_requester_name_in_ui.md` — this plan.
 
 ## Related Issues and Tasks
 
