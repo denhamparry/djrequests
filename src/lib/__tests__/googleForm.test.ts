@@ -75,19 +75,27 @@ describe('submitSongRequest', () => {
     }
   });
 
-  it('treats non-string requestId as undefined (defensive type guard)', async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: false,
-      status: 502,
-      json: async () => ({ error: 'Oops.', requestId: 123 })
-    });
+  it.each([
+    { label: 'number', value: 123 },
+    { label: 'null', value: null },
+    { label: 'array', value: [] },
+    { label: 'object', value: {} }
+  ])(
+    'treats non-string requestId ($label) as undefined (defensive type guard)',
+    async ({ value }) => {
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 502,
+        json: async () => ({ error: 'Oops.', requestId: value })
+      });
 
-    try {
-      await submitSongRequest(song, requester);
-      throw new Error('expected throw');
-    } catch (err) {
-      expect(err).toBeInstanceOf(RequestError);
-      expect((err as RequestError).requestId).toBeUndefined();
+      try {
+        await submitSongRequest(song, requester);
+        throw new Error('expected throw');
+      } catch (err) {
+        expect(err).toBeInstanceOf(RequestError);
+        expect((err as RequestError).requestId).toBeUndefined();
+      }
     }
-  });
+  );
 });
