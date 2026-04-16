@@ -202,6 +202,75 @@ describe('Song search experience', () => {
     ).toBeInTheDocument();
   });
 
+  it('includes the (ref: <id>) suffix when the submission fails with a requestId', async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.get(searchEndpoint, () =>
+        HttpResponse.json({
+          tracks: [
+            {
+              id: '1',
+              title: 'T',
+              artist: 'A',
+              album: null,
+              artworkUrl: null,
+              previewUrl: null
+            }
+          ]
+        })
+      ),
+      http.post(requestEndpoint, () =>
+        HttpResponse.json(
+          { error: 'Failed to reach the request service.', requestId: 'abc12345' },
+          { status: 502 }
+        )
+      )
+    );
+
+    render(<App />);
+
+    await user.type(screen.getByLabelText(/Your name/i), 'Avery');
+    await user.type(screen.getByLabelText(/Search songs/i), 'anything');
+    await user.click(await screen.findByRole('button', { name: /Request "T"/i }));
+
+    expect(await screen.findByText(/\(ref: abc12345\)/)).toBeInTheDocument();
+  });
+
+  it('does not include (ref: ...) when the submission fails without a requestId', async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.get(searchEndpoint, () =>
+        HttpResponse.json({
+          tracks: [
+            {
+              id: '2',
+              title: 'T2',
+              artist: 'A',
+              album: null,
+              artworkUrl: null,
+              previewUrl: null
+            }
+          ]
+        })
+      ),
+      http.post(requestEndpoint, () =>
+        HttpResponse.json({ error: 'Invalid JSON payload' }, { status: 400 })
+      )
+    );
+
+    render(<App />);
+
+    await user.type(screen.getByLabelText(/Your name/i), 'Avery');
+    await user.type(screen.getByLabelText(/Search songs/i), 'anything');
+    await user.click(await screen.findByRole('button', { name: /Request "T2"/i }));
+
+    const banner = await screen.findByText(/Invalid JSON payload/);
+    expect(banner).toBeInTheDocument();
+    expect(banner.textContent).not.toMatch(/\(ref:/);
+  });
+
   it('disables request buttons until a requester name is entered', async () => {
     const user = userEvent.setup();
 

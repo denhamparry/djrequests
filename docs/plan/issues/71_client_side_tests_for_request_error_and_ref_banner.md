@@ -2,7 +2,7 @@
 
 **Issue:**
 [#71](https://github.com/denhamparry/djrequests/issues/71)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-16
 
 ## Problem Statement
