@@ -1,7 +1,7 @@
 # GitHub Issue #32: Harden request.ts — validate payload shape and rate-limit submissions
 
 **Issue:** [#32](https://github.com/denhamparry/djrequests/issues/32)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -386,3 +386,162 @@ surface the UI gap as a follow-up enhancement issue during Phase 4.5.
    for a no-infra fix.
 3. **Require `requester.name` strictly in this PR** — deferred: UI doesn't
    collect it yet; would break current submissions.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+**Original Plan Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation (addressing the Required
+  Changes inline during Phase 3)
+
+### Strengths
+
+- Module naming (`_validate.ts`, `_rateLimit.ts`) matches the existing
+  `_cors.ts` convention — Netlify treats underscore-prefixed files as
+  utilities, not deployable functions.
+- Vitest `include` glob `netlify/functions/__tests__/**/*.test.ts` (verified in
+  `vite.config.ts`) will pick up the proposed test files without config
+  changes.
+- Validator returns a normalised `ValidatedRequest` so the handler can drop
+  the `?? ''` fallbacks — good reduction in branching.
+- Correctly identifies the in-memory limiter's weakness (not shared across
+  cold starts / instances) and proposes documenting it rather than papering
+  over it.
+- Sensible call order: cheap checks → rate limit → validation → form post.
+- Correct handling of the `requester.name` tension between the issue's
+  "required" wording and the current UI not collecting a name. Deferring the
+  strict requirement and raising a follow-up is the right call given this
+  PR's scope.
+
+### Gaps Identified
+
+1. **Gap 1: In-memory `hits` Map has no eviction.**
+   - **Impact:** Low
+   - **Recommendation:** Keep this gap explicit in the module's file-level
+     comment. Under the expected threat model (single bar event, tens of
+     guests) the entry count is trivial, but a one-line "entries are pruned
+     only when the same key is touched" note prevents future confusion.
+
+2. **Gap 2: Plan does not specify behaviour when `x-forwarded-for` is
+   missing.**
+   - **Impact:** Low
+   - **Recommendation:** The sketched `resolveClientKey` returns `'unknown'`
+     in that case, which would collapse all such requests onto one bucket —
+     acceptable. Add a test asserting missing-header requests share the
+     `'unknown'` bucket so the behaviour is pinned.
+
+### Edge Cases Not Covered
+
+1. **Empty-string optional fields vs. missing optional fields.**
+   - **Current Plan:** `optionalString` returns `null` for `undefined`,
+     `null`, or `''` — good. But the validator then passes `null` where the
+     current handler passed `''` into `appendField`. The handler uses
+     `appendField(params, id, value ?? '')`, so `null` still becomes `''` on
+     the wire. ✅ No change needed, but add a test asserting a submitted
+     form with `album: ''` produces an empty `entry.<album>` param (no
+     regression).
+
+2. **Test state leakage between the new rate-limit tests and existing
+   request tests.**
+   - **Current Plan:** Plan mentions calling `resetRateLimit()` in
+     `beforeEach`.
+   - **Recommendation:** Also call it in the new `_rateLimit.test.ts` file's
+     `beforeEach` to stop ordering-dependent flakes when running in parallel
+     with the handler suite.
+
+3. **Non-string `song`/`requester` (e.g. an array).**
+   - **Current Plan:** `typeof song !== 'object'` check — but arrays are
+     `object`. An array would slip through to property access and fail
+     silently on `song.id` (undefined → 400 via requireString). Functional,
+     but tighten by rejecting arrays explicitly or note the behaviour is
+     acceptable because the final error surface is still a 400.
+   - **Recommendation:** Non-blocking. Add an `Array.isArray(song)` guard
+     for defense-in-depth, or leave and rely on the downstream 400.
+
+### Alternative Approaches (Reviewer Perspective)
+
+1. **Netlify `@netlify/plugin-rate-limit` or Edge Functions.**
+   - **Pros:** Cross-instance state.
+   - **Cons:** New infrastructure; out of scope.
+   - **Verdict:** Plan's in-memory approach is correct for the stated
+     threat model.
+
+2. **Use `zod` for the validator.**
+   - **Pros:** Less custom parsing code; better error messages.
+   - **Cons:** Adds a dependency to a currently dep-free function; marginal
+     value for ~6 fields.
+   - **Verdict:** Plan's hand-rolled choice is correct here.
+
+### Risks and Concerns
+
+1. **Risk: Updating the `request.test.ts` happy-path payload to include
+   `requester.name` is not strictly required if the plan keeps
+   `requester.name` optional (Option 1).**
+   - **Likelihood:** Medium (plan says "Update happy-path payloads to include
+     `requester.name` (required)" but also recommends Option 1 elsewhere).
+   - **Impact:** Low — inconsistent wording only.
+   - **Mitigation:** Clarify in Phase 3 that `requester.name` is **not**
+     made required in this PR; tests can either add it or leave it absent.
+     See Required Change #1.
+
+2. **Risk: Existing "missing song payload" test asserts error message matches
+   `/song information/i`.**
+   - **Likelihood:** High (the new validator returns `'Song information is
+     required'` — that matches).
+   - **Impact:** None.
+   - **Mitigation:** Keep the validator error message literal stable.
+
+3. **Risk: Shared limiter state across tests could mask a bug where the
+   limiter state leaks between functions (e.g. if `search.ts` were ever
+   wired to the same limiter).**
+   - **Likelihood:** Low (plan scopes the limiter to `request.ts` only).
+   - **Impact:** Low.
+   - **Mitigation:** None needed; noted for awareness.
+
+### Required Changes
+
+**Changes that must be addressed during implementation (not a plan revision):**
+
+- [ ] Clarify that `requester.name` stays **optional** in this PR (falls
+      back to `'Anonymous'` or empty string when missing). Do not update
+      existing happy-path tests to add `requester.name`; instead add a
+      *new* test asserting a payload without a requester block still
+      succeeds, and another asserting a payload with `requester: { name: 'A' }`
+      succeeds. This resolves the self-conflicting wording between Step 3's
+      "Update happy-path payloads to include `requester.name` (required)"
+      and the Open Question's "Recommended: Option 1".
+- [ ] Add a test for the missing-`x-forwarded-for` path so the fallback
+      key is pinned.
+- [ ] Ensure `_rateLimit.test.ts` calls `resetRateLimit()` in `beforeEach`.
+
+### Optional Improvements
+
+- [ ] Add an `Array.isArray(song)` explicit reject for defence-in-depth.
+- [ ] Include a short module-level comment on `_rateLimit.ts` documenting
+      the lack of TTL eviction (size is bounded by unique IP count only).
+- [ ] Consider returning `{ error, field }` from the validator so the client
+      could surface which field failed; not required for this PR.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered (with the
+      `requester.name` strictness deferral called out)
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate (`_cors.ts` convention
+      confirmed; vitest include glob verified)
+- [x] Security implications considered and addressed (input validation,
+      length caps, rate limiting)
+- [x] Performance impact assessed (O(k) per request where k ≤ 5)
+- [x] Test strategy covers critical paths and edge cases
+- [x] Documentation updates planned (module comments)
+- [x] Related issues/dependencies identified (UI does not collect
+      `requester.name` — flagged as follow-up)
+- [x] Breaking changes documented (400s for malformed payloads — previously
+      accepted silently)
