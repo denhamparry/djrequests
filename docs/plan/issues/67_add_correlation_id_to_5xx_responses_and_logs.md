@@ -1,7 +1,7 @@
 # GitHub Issue #67: enhancement(request): add correlation/request ID to 5xx client responses and server logs
 
 **Issue:** [#67](https://github.com/denhamparry/djrequests/issues/67)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -460,11 +460,11 @@ any).requestId`.
 
 **Changes that must be made during implementation (no plan re-revision):**
 
-- [ ] Drop the `Math.random` fallback in `generateRequestId` — call
+- [x] Drop the `Math.random` fallback in `generateRequestId` — call
       `crypto.randomUUID().slice(0, 8)` directly.
-- [ ] Commit to the `RequestError` subclass approach (rather than ad-hoc
+- [x] Commit to the `RequestError` subclass approach (rather than ad-hoc
       property on `Error`) and export it from `src/lib/googleForm.ts`.
-- [ ] Update all five existing 5xx tests (not four) to assert `requestId` in
+- [x] Update all five existing 5xx tests (not four) to assert `requestId` in
       body and `(requestId=...)` in logs.
 
 ### Optional Improvements
