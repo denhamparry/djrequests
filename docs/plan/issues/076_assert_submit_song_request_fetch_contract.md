@@ -1,7 +1,7 @@
 # GitHub Issue #76: test(client): assert submitSongRequest fetch URL/method/body on success path
 
 **Issue:** [#76](https://github.com/denhamparry/djrequests/issues/76)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -203,3 +203,77 @@ is scoped to the client-side contract.
 - When a client function crosses a process boundary, tests should pin both
   the request shape (what we send) and the response handling (what we do
   with the reply). This plan closes the request-shape gap.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+**Original Plan Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation
+
+### Strengths
+
+- Scope is minimal and correct: a test-only change that pins the client wire
+  contract. No production code touched.
+- Chosen assertion style (`const [url, init] = fetchMock.mock.calls[0]`)
+  matches the established convention in
+  `netlify/functions/__tests__/request.test.ts:102` — consistent with the
+  codebase.
+- Plan correctly identifies that string-equality on the serialised body is
+  stronger than `toMatchObject` of a parsed body (catches property-order
+  drift).
+- Plan verifies the production code reads `{ song, requester: details }` —
+  insertion order `song, requester` — which matches the test's
+  `JSON.stringify({ song, requester })`, so the string-equality assertion
+  is sound.
+
+### Gaps Identified
+
+None of material impact.
+
+### Edge Cases Not Covered
+
+1. **Headers as `Headers` instance.** If `submitSongRequest` is ever
+   refactored to pass a `Headers` instance, `init.headers['Content-Type']`
+   would become `undefined` and the test would fail — which is correct,
+   forcing the test to be updated alongside the refactor. No change needed.
+
+### Alternative Approaches Re-considered
+
+1. **`toHaveBeenCalledWith(url, expect.objectContaining(...))`** — equally
+   idiomatic, but the explicit destructure makes the body string-equality
+   read more clearly. Current approach is preferable.
+
+### Risks and Concerns
+
+None.
+
+### Required Changes
+
+None.
+
+### Optional Improvements
+
+- [ ] Consider also asserting `init.body` parses back to
+      `{ song, requester }` via `JSON.parse` for a human-readable failure
+      message. Skip — string equality is sufficient and the diff output
+      from Vitest is already readable.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate (verified
+      `src/lib/googleForm.ts:21-30` and test file at cited lines)
+- [x] Security implications considered (none — test-only change)
+- [x] Performance impact assessed (negligible — single extra test block)
+- [x] Test strategy covers critical paths and edge cases
+- [x] Documentation updates planned (none needed)
+- [x] Related issues/dependencies identified (#71)
+- [x] Breaking changes documented (none)
