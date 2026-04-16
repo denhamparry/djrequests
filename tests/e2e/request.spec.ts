@@ -1,5 +1,19 @@
 import { test, expect } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    // Stub HTMLMediaElement.play/pause so Chromium's autoplay policy and the
+    // absence of real audio data do not flake the smoke test.
+    HTMLMediaElement.prototype.play = function () {
+      queueMicrotask(() => this.dispatchEvent(new Event('playing')));
+      return Promise.resolve();
+    };
+    HTMLMediaElement.prototype.pause = function () {
+      this.dispatchEvent(new Event('pause'));
+    };
+  });
+});
+
 test('smoke: user can search and prepare a song request', async ({ page }) => {
   await page.route('**/.netlify/functions/search**', async (route, request) => {
     const url = new URL(request.url());
@@ -56,6 +70,15 @@ test('smoke: user can search and prepare a song request', async ({ page }) => {
   await expect(requestButton).toBeDisabled();
 
   await page.fill('input[aria-label="Your name"]', 'Avery');
+
+  const previewButton = page.getByRole('button', {
+    name: 'Preview Digital Love by Daft Punk'
+  });
+  await expect(previewButton).toHaveAttribute('aria-pressed', 'false');
+  await previewButton.click();
+  await expect(previewButton).toHaveAttribute('aria-pressed', 'true');
+  await previewButton.click();
+  await expect(previewButton).toHaveAttribute('aria-pressed', 'false');
 
   await requestButton.click();
 

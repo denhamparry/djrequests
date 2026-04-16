@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSongSearch } from './hooks/useSongSearch';
 import { RequestError, submitSongRequest } from './lib/googleForm';
+import PreviewButton, { type PreviewState } from './components/PreviewButton';
+import type { Song } from '../shared/types';
 import squirrelsImage from '../squirrels.jpeg';
 
 const SUBMIT_COOLDOWN_MS = 3000;
@@ -15,17 +17,85 @@ function App() {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
+  const [playingSongId, setPlayingSongId] = useState<string | null>(null);
+  const [loadingSongId, setLoadingSongId] = useState<string | null>(null);
   const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const trimmedName = requesterName.trim();
   const hasName = trimmedName.length > 0;
 
+  const ensureAudio = (): HTMLAudioElement => {
+    if (audioRef.current) return audioRef.current;
+    const audio = new Audio();
+    audio.preload = 'none';
+    audio.addEventListener('playing', () => setLoadingSongId(null));
+    audio.addEventListener('ended', () => {
+      setPlayingSongId(null);
+      setLoadingSongId(null);
+    });
+    audio.addEventListener('pause', () => setLoadingSongId(null));
+    audio.addEventListener('error', () => {
+      setPlayingSongId(null);
+      setLoadingSongId(null);
+    });
+    audioRef.current = audio;
+    return audio;
+  };
+
+  const togglePreview = (song: Song) => {
+    if (!song.previewUrl) return;
+    const audio = ensureAudio();
+
+    if (playingSongId === song.id) {
+      audio.pause();
+      setPlayingSongId(null);
+      setLoadingSongId(null);
+      return;
+    }
+
+    audio.pause();
+    audio.src = song.previewUrl;
+    setPlayingSongId(song.id);
+    setLoadingSongId(song.id);
+    audio.play().catch((err: unknown) => {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      setPlayingSongId(null);
+      setLoadingSongId(null);
+      if (err instanceof Error) {
+        console.warn('Preview playback failed:', err.message);
+      }
+    });
+  };
+
   useEffect(
     () => () => {
       if (cooldownTimer.current) clearTimeout(cooldownTimer.current);
+      const audio = audioRef.current;
+      if (audio) {
+        audio.pause();
+        audio.src = '';
+        audioRef.current = null;
+      }
     },
     []
   );
+
+  useEffect(() => {
+    if (!playingSongId) return;
+    const stillPresent = results.some((song) => song.id === playingSongId);
+    if (!stillPresent) {
+      audioRef.current?.pause();
+      setPlayingSongId(null);
+      setLoadingSongId(null);
+    }
+  }, [results, playingSongId]);
+
+  const previewStateFor = (songId: string): PreviewState => {
+    if (loadingSongId === songId) return 'loading';
+    if (playingSongId === songId) return 'playing';
+    return 'idle';
+  };
 
   const startCooldown = (songId: string) => {
     if (cooldownTimer.current) clearTimeout(cooldownTimer.current);
@@ -155,11 +225,20 @@ function App() {
         <ul className="results" aria-live="polite">
           {results.map((song) => (
             <li key={song.id}>
-              {song.artworkUrl ? (
-                <img src={song.artworkUrl} alt="" width={56} height={56} />
-              ) : (
-                <div className="artwork-placeholder" aria-hidden />
-              )}
+              <div className="artwork">
+                {song.artworkUrl ? (
+                  <img src={song.artworkUrl} alt="" width={56} height={56} />
+                ) : (
+                  <div className="artwork-placeholder" aria-hidden />
+                )}
+                {song.previewUrl && (
+                  <PreviewButton
+                    state={previewStateFor(song.id)}
+                    trackLabel={`${song.title} by ${song.artist}`}
+                    onClick={() => togglePreview(song)}
+                  />
+                )}
+              </div>
               <div>
                 <p className="song-title">{song.title}</p>
                 <p className="song-meta">

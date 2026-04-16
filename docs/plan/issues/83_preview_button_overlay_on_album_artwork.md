@@ -1,7 +1,7 @@
 # GitHub Issue #83: feat(ui): add play-preview overlay on album artwork
 
 **Issue:** [#83](https://github.com/denhamparry/djrequests/issues/83)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -468,13 +468,13 @@ prototype.
 
 **Must be made during implementation:**
 
-- [ ] aria-label includes both title AND artist
-- [ ] Use `vi.spyOn(...).mockRestore()` or a scoped setup file for
+- [x] aria-label includes both title AND artist
+- [x] Use `vi.spyOn(...).mockRestore()` or a scoped setup file for
       HTMLMediaElement stubs — do not permanently mutate the prototype
-- [ ] Add results-change effect that pauses audio and clears
+- [x] Add results-change effect that pauses audio and clears
       `playingId` when the currently-playing track drops out of
       results
-- [ ] The `audio.play()` `.catch()` must silently swallow `AbortError`
+- [x] The `audio.play()` `.catch()` must silently swallow `AbortError`
 
 ### Optional Improvements
 
