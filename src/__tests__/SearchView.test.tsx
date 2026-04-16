@@ -160,6 +160,48 @@ describe('Song search experience', () => {
     ).toBeInTheDocument();
   });
 
+  it('trims leading/trailing whitespace from the requester name before submitting', async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.get(searchEndpoint, () =>
+        HttpResponse.json({
+          tracks: [
+            {
+              id: '777',
+              title: 'Harder Better Faster Stronger',
+              artist: 'Daft Punk',
+              album: 'Discovery',
+              artworkUrl: null,
+              previewUrl: null
+            }
+          ]
+        })
+      ),
+      http.post(requestEndpoint, async ({ request }) => {
+        const body = (await request.json()) as { requester: { name: string } };
+        expect(body.requester.name).toBe('Avery');
+        return HttpResponse.json({ message: 'Song request submitted successfully.' });
+      })
+    );
+
+    render(<App />);
+
+    await user.type(screen.getByLabelText(/Your name/i), '  Avery  ');
+    await user.type(screen.getByLabelText(/Search songs/i), 'daft punk');
+
+    const requestButton = await screen.findByRole('button', {
+      name: /Request "Harder Better Faster Stronger"/i
+    });
+    await user.click(requestButton);
+
+    expect(
+      await screen.findByText(
+        /Request for "Harder Better Faster Stronger" sent to the DJ queue./i
+      )
+    ).toBeInTheDocument();
+  });
+
   it('disables request buttons until a requester name is entered', async () => {
     const user = userEvent.setup();
 

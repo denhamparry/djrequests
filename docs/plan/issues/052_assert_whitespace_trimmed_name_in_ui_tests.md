@@ -1,7 +1,7 @@
 # GitHub Issue #52: assert whitespace-trimmed name is sent to /request in UI tests
 
 **Issue:** [#52](https://github.com/denhamparry/djrequests/issues/52)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
