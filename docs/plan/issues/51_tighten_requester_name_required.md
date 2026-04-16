@@ -1,7 +1,7 @@
 # GitHub Issue #51: tighten shared Requester.name to string (not optional)
 
 **Issue:** [#51](https://github.com/denhamparry/djrequests/issues/51)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -228,3 +228,98 @@ npm run test:unit
 
 - Keep shared wire types aligned with server-enforced runtime validation.
 - Prefer removing dead defaults over preserving them when tightening a type.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+**Original Plan Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation
+
+### Strengths
+
+- Plan correctly identifies the full contract drift: optional in shared type
+  vs. required in `_validate.ts`.
+- Distinguishes cleanly between pre-validation wire type (`Requester`) and
+  post-validation branded type (`ValidatedRequester` from #49) — does not
+  conflate them.
+- Catches the dead `= {}` default in `submitSongRequest` as a necessary
+  co-change; without it, TypeScript would still infer `details` as
+  `Requester`, but an explicit call with no second argument would become an
+  error — the plan removes that foot-gun.
+- Scope is minimal and proportionate (two files, ~3 lines).
+
+### Verification of Code References
+
+Verified independently:
+
+- `shared/types.ts:14-18` — `name?: string` ✅
+- `netlify/functions/_validate.ts:83-84` — `requester.name` enforced via
+  `requireString` ✅
+- `src/lib/googleForm.ts:7-10` — `details: Requester = {}` default ✅
+- `src/App.tsx:51-54` — callsite passes `{ name: trimmedName, dedication }`,
+  guarded by `hasName` at line 41 ✅
+- Only one in-source callsite of `submitSongRequest` (grep confirmed)
+- `tests/e2e/request.spec.ts` already asserts `body.requester.name === 'Avery'`
+  — consistent with required `name`, no test update needed
+
+### Gaps Identified
+
+None blocking.
+
+### Edge Cases Not Covered
+
+1. **Whitespace-only name from a future caller**
+   - **Current Plan:** Type system cannot enforce non-empty; runtime validator
+     (`requireString` → `value.trim()` check) handles this.
+   - **Recommendation:** Accept — defence-in-depth at the boundary is the
+     correct layer for value-level invariants. Type narrowing to
+     `NonEmptyString` would be over-engineered for this change.
+
+### Alternatives Reconsidered During Review
+
+1. **Introduce a branded `NonEmptyString` for `name`**
+   - **Pros:** Stronger compile-time invariant.
+   - **Cons:** Requires a runtime constructor and would leak branding into the
+     UI layer; inconsistent with the pre/post-validation split established in
+     #49.
+   - **Verdict:** Current plan is correct — keep `Requester` as the wire shape
+     and let `ValidatedRequester` remain the post-validation type.
+
+### Risks and Concerns
+
+1. **Apps Script field label coupling**
+   - **Likelihood:** Low
+   - **Impact:** Low
+   - **Mitigation:** `apps-script/index.ts:77` reads `"Requester Name"` from
+     form `namedValues`, not from the shared TypeScript type. Unaffected by
+     this change. Confirmed.
+
+### Required Changes
+
+None.
+
+### Optional Improvements
+
+- [ ] Consider a short commit-message note pointing to #49 so future readers
+      see the pair of changes together.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate
+- [x] Security implications considered (none — type tightening only)
+- [x] Performance impact assessed (none)
+- [x] Test strategy covers critical paths and edge cases (existing coverage
+      sufficient)
+- [x] Documentation updates planned (none needed)
+- [x] Related issues/dependencies identified (#44, #49)
+- [x] Breaking changes documented (none — no external API; wire type is
+      internal)
