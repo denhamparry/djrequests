@@ -7,6 +7,7 @@ import squirrelsImage from '../squirrels.jpeg';
 
 const SUBMIT_COOLDOWN_MS = 3000;
 const PREVIEW_LOADING_TIMEOUT_MS = 8000;
+const PREVIEW_ERROR_DISPLAY_MS = 2000;
 
 function App() {
   const { query, setQuery, results, status, message, error } = useSongSearch();
@@ -20,9 +21,11 @@ function App() {
   } | null>(null);
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
   const [loadingSongId, setLoadingSongId] = useState<string | null>(null);
+  const [erroredSongId, setErroredSongId] = useState<string | null>(null);
   const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const loadingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const trimmedName = requesterName.trim();
   const hasName = trimmedName.length > 0;
@@ -38,6 +41,22 @@ function App() {
     clearLoadingTimer();
     setPlayingSongId(null);
     setLoadingSongId(null);
+  };
+
+  const clearErrorTimer = () => {
+    if (errorTimer.current) {
+      clearTimeout(errorTimer.current);
+      errorTimer.current = null;
+    }
+  };
+
+  const flashPreviewError = (songId: string) => {
+    clearErrorTimer();
+    setErroredSongId(songId);
+    errorTimer.current = setTimeout(() => {
+      errorTimer.current = null;
+      setErroredSongId(null);
+    }, PREVIEW_ERROR_DISPLAY_MS);
   };
 
   const ensureAudio = (): HTMLAudioElement => {
@@ -69,6 +88,11 @@ function App() {
     if (!song.previewUrl) return;
     const audio = ensureAudio();
 
+    if (erroredSongId === song.id) {
+      clearErrorTimer();
+      setErroredSongId(null);
+    }
+
     if (playingSongId === song.id) {
       audio.pause();
       resetPreviewState();
@@ -91,9 +115,7 @@ function App() {
     audio.play().catch((err: unknown) => {
       if (err instanceof Error && err.name === 'AbortError') return;
       resetPreviewState();
-      if (err instanceof Error) {
-        console.warn('Preview playback failed:', err.message);
-      }
+      flashPreviewError(song.id);
     });
   };
 
@@ -101,6 +123,7 @@ function App() {
     () => () => {
       if (cooldownTimer.current) clearTimeout(cooldownTimer.current);
       clearLoadingTimer();
+      clearErrorTimer();
       const audio = audioRef.current;
       if (audio) {
         audio.pause();
@@ -120,9 +143,19 @@ function App() {
     }
   }, [results, playingSongId]);
 
+  useEffect(() => {
+    if (!erroredSongId) return;
+    const stillPresent = results.some((song) => song.id === erroredSongId);
+    if (!stillPresent) {
+      clearErrorTimer();
+      setErroredSongId(null);
+    }
+  }, [results, erroredSongId]);
+
   const previewStateFor = (songId: string): PreviewState => {
     if (loadingSongId === songId) return 'loading';
     if (playingSongId === songId) return 'playing';
+    if (erroredSongId === songId) return 'error';
     return 'idle';
   };
 
