@@ -2,7 +2,7 @@
 
 **Issue:**
 [#71](https://github.com/denhamparry/djrequests/issues/71)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -332,3 +332,74 @@ npm run test:unit -- --run src/__tests__/SearchView.test.tsx
 - Prefer `toMatchObject` for error assertions when you care about specific
   fields but not strict equality of the whole object (errors often carry
   stack traces and prototype chain metadata).
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+**Original Plan Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation
+
+### Strengths
+
+- Test-only scope with zero production-code risk.
+- Mirrors two existing test precedents (`request.test.ts` for `vi.stubGlobal`,
+  `SearchView.test.tsx` for MSW) — no new patterns introduced.
+- Four `googleForm` cases map 1:1 to the issue body's requirements,
+  including the non-string-`requestId` defensive branch.
+- Pins `.name === 'RequestError'` via `toMatchObject({ name: 'RequestError' })`
+  — catches the exact refactor scenarios the issue calls out.
+
+### Gaps Identified
+
+1. **Fetch-throws branch not covered.**
+   - **Impact:** Low
+   - **Observation:** The plan covers `!response.ok` and the success path,
+     but not `fetch` itself rejecting (network error). Currently
+     `submitSongRequest` does not catch this — it lets the raw `TypeError`
+     bubble up — so the App-side `instanceof RequestError` check evaluates
+     to false and `.requestId` ends up undefined. This is existing
+     behaviour and out of scope for the issue.
+   - **Recommendation:** Do not extend scope here. If this becomes a
+     concern, track it as a follow-up.
+
+### Edge Cases Not Covered
+
+None blocking. The three failure-mode shapes the issue enumerates are
+covered.
+
+### Alternative Approaches Considered
+
+1. **Also add an E2E Playwright test for the banner.**
+   - **Pros:** End-to-end browser assertion.
+   - **Cons:** Slower; MSW + jsdom already exercises the same code path.
+   - **Verdict:** Over-engineered for a test-only enhancement.
+
+### Risks and Concerns
+
+None of note. Test-only PR, no runtime behaviour change.
+
+### Required Changes
+
+None.
+
+### Optional Improvements
+
+- [ ] Consider adding a `fetch`-rejects branch test in a follow-up if the
+      team later chooses to surface network errors as `RequestError` too.
+
+### Verification Checklist
+
+- [x] Solution addresses gap identified in GitHub issue
+- [x] All four `googleForm` cases from issue body covered
+- [x] Both UI assertions (with-id / without-id) covered
+- [x] File paths and code references are accurate
+- [x] No production-code change (test-only)
+- [x] Test strategy covers critical paths and edge cases
+- [x] Documentation updates planned (N/A — test-only)
+- [x] Breaking changes documented (none)
