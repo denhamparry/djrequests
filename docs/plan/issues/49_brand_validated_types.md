@@ -1,7 +1,7 @@
 # GitHub Issue #49: refactor: brand ValidatedSong/ValidatedRequester to enforce validation at the type level
 
 **Issue:** [#49](https://github.com/denhamparry/djrequests/issues/49)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -313,3 +313,101 @@ npm run test:unit -- netlify/functions/__tests__/_validate.test.ts
   actually done the work the brand represents.
 - Never export the `Brand` helper from `_validate.ts`; keeping it local
   prevents other modules from minting branded values.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+**Original Plan Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation
+
+### Strengths
+
+- Plan faithfully implements the exact pattern requested in the issue body
+  (`type ValidatedSong = Song & { readonly __brand: 'ValidatedSong' }`).
+- Correctly identifies that `shared/Requester` cannot be reused directly for
+  `ValidatedRequester` because required/optional fields and nullability
+  differ — keeps an explicit shape rather than forcing alignment.
+- Recognises the brand is a compile-time phantom, so the `toEqual` tests in
+  `_validate.test.ts` keep working unchanged. No churn to the existing suite.
+- Import path `../../shared/types` is verified to work — `search.ts` already
+  uses `import type { Song } from '../../shared/types'`, so the same pattern
+  is proven under the `tsconfig.node.json` include set.
+- The `as` casts are correctly scoped to the single validator, preserving the
+  invariant that only `validateRequestBody` can mint branded values.
+- Optional Step 3 negative test (`@ts-expect-error`) is an excellent
+  regression guard that costs almost nothing.
+
+### Gaps Identified
+
+1. **None blocking.** The plan is complete for the scope described in #49.
+
+### Edge Cases Not Covered
+
+1. **Downstream function signatures that do not yet require the brand.**
+   - **Current Plan:** Introduces the brand but does not update any callers
+     to declare `ValidatedSong`/`ValidatedRequester` parameters.
+   - **Recommendation:** Deliberately out of scope for #49 — the brand exists
+     so future refactors _can_ use it. Noted in "Enables". No action needed.
+
+### Alternative Approaches Evaluated
+
+1. **Symbol-keyed brand** — rejected in plan; agree (ergonomic cost > marginal
+   safety gain for a wire payload).
+2. **Class with private field** — rejected in plan; agree (runtime + JSON
+   serialisation overhead unacceptable).
+3. **Plan's chosen string-literal phantom brand** — matches the issue body,
+   zero runtime cost, maximum ergonomics. ✅
+
+### Risks and Concerns
+
+1. **`as` cast hides a real shape mismatch if `Song` evolves.**
+   - **Likelihood:** Low
+   - **Impact:** Low (TS still checks the cast is between assignable-related
+     types; a new required field on `Song` would surface elsewhere).
+   - **Mitigation:** If a new required field is added to `Song` in future,
+     `validateRequestBody`'s constructed literal would no longer satisfy
+     `Song`, so the `as ValidatedSong` cast would fail to compile — this is
+     the desired behaviour. No mitigation required.
+2. **`shared/types.ts` lives outside `tsconfig.node.json`'s `include`.**
+   - **Likelihood:** Low (already proven in `search.ts`).
+   - **Impact:** None — TS follows imports into out-of-include files; the
+     root file set just controls the program roots.
+   - **Mitigation:** None needed.
+
+### Required Changes
+
+None. The plan is ready for implementation as written.
+
+### Optional Improvements
+
+- [ ] **Keep Step 3 (negative-assertion test).** Not strictly required for
+      closing the issue, but it turns the type-level contract into a
+      compile-time regression test — cheap insurance.
+- [ ] Consider a one-line JSDoc on `Brand<T,B>` explaining the phantom field
+      is compile-time only, to help future maintainers.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue (structural
+      typing lets raw `Song` satisfy `ValidatedSong`).
+- [x] All acceptance criteria from issue are covered (brand applied to both
+      types; `validateRequestBody` sole constructor).
+- [x] Implementation steps are specific and actionable (exact code snippets
+      provided).
+- [x] File paths and code references are accurate (`_validate.ts`,
+      `request.ts`, import path verified against `search.ts`).
+- [x] Security implications considered — none (type-level only).
+- [x] Performance impact assessed — zero runtime cost (phantom field).
+- [x] Test strategy covers critical paths (existing suite + optional
+      compile-time negative test).
+- [x] Documentation updates planned — the plan itself is the documentation;
+      no README change needed for a private, internal type refactor.
+- [x] Related issues/dependencies identified (#33, #47).
+- [x] Breaking changes documented — none; the brand is additive at the type
+      level and invisible at runtime.
