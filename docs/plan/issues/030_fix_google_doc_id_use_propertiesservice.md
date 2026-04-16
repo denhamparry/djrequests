@@ -1,7 +1,7 @@
 # GitHub Issue #30: Fix likely-incorrect Google Doc ID in Apps Script and move to PropertiesService
 
 **Issue:** [#30](https://github.com/denhamparry/djrequests/issues/30)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-16
 
 ## Problem Statement
