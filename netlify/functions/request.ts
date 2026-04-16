@@ -1,5 +1,6 @@
 import type { Handler } from '@netlify/functions';
 import { FORM_FIELD_IDS } from '../../shared/formFields';
+import { corsHeaders } from './_cors';
 
 type SongPayload = {
   id: string;
@@ -21,17 +22,11 @@ type RequestBody = {
   requester?: RequesterPayload;
 };
 
-const corsHeaders = {
-  'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'POST,OPTIONS',
-  'access-control-allow-headers': 'Content-Type'
-};
-
 const jsonResponse = (statusCode: number, payload: Record<string, unknown>) => ({
   statusCode,
   headers: {
     'content-type': 'application/json',
-    ...corsHeaders
+    ...corsHeaders()
   },
   body: JSON.stringify(payload)
 });
@@ -79,7 +74,7 @@ export const handler: Handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 204,
-      headers: corsHeaders,
+      headers: corsHeaders(),
       body: ''
     };
   }

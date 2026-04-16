@@ -224,7 +224,8 @@ To request a code review from Claude on any PR:
 
 ### Optional
 
-- None currently; iTunes Search API requires no authentication
+- `ALLOWED_ORIGIN` - Origin allowed to call the Netlify functions (e.g. `https://djrequests.netlify.app`). Used in the `Access-Control-Allow-Origin` header on both `search` and `request`. Falls back to Netlify's auto-provided `URL` env var, then to `*` when neither is set (keeps `netlify dev` and tests working).
+- iTunes Search API requires no authentication.
 
 ## Deployment
 

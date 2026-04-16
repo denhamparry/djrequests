@@ -1,4 +1,5 @@
 import type { Handler } from '@netlify/functions';
+import { corsHeaders } from './_cors';
 
 type ITunesTrack = {
   trackId: number;
@@ -43,7 +44,7 @@ const jsonResponse = (statusCode: number, payload: SearchResponse) => ({
   headers: {
     'content-type': 'application/json',
     'cache-control': 'public, max-age=60',
-    'access-control-allow-origin': '*'
+    ...corsHeaders()
   },
   body: JSON.stringify(payload)
 });
@@ -95,6 +96,10 @@ async function fetchFromItunes(url: string): Promise<UpstreamOutcome> {
 }
 
 export const handler: Handler = async (event) => {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: corsHeaders(), body: '' };
+  }
+
   const term = event.queryStringParameters?.term?.trim();
 
   if (!term) {
