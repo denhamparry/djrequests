@@ -1,7 +1,7 @@
 # GitHub Issue #39: fix SearchView.test.tsx setup crash blocking UI integration tests
 
 **Issue:** [#39](https://github.com/denhamparry/djrequests/issues/39)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -313,3 +313,138 @@ passes on the PR.
 - Use `npm ci`, not `npm install`, in CI for lockfile-faithful installs.
 - Keep this workflow single-job until there's a concrete need for a matrix —
   premature complexity is a maintenance cost.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+**Original Plan Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved (with one required refinement)
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation after applying Required Change 1
+
+### Strengths
+
+- Correctly identified that the reporter's crash does not reproduce on a fresh
+  install — validated empirically by running `npm ci` + `npm run test:unit`
+  (22/22 tests pass).
+- Traced the residual `--localstorage-file` warning to a specific Node.js
+  warning category (verified: it is an `ExperimentalWarning`), rather than
+  guessing.
+- Identified the real underlying risk — `.github/workflows/ci.yml` is a
+  placeholder, so the suite's execution in CI is the ask that actually
+  matters.
+- Scoped tightly: did not attempt to rewrite MSW setup or revive the global
+  setup file that ef09120 deliberately removed.
+
+### Gaps Identified
+
+1. **`NODE_NO_WARNINGS=1` is too broad.**
+   - **Impact:** Medium.
+   - **Detail:** Verified that the offending warning is categorised as
+     `ExperimentalWarning` (silenced by
+     `NODE_OPTIONS=--no-warnings=ExperimentalWarning`). `NODE_NO_WARNINGS=1`
+     also hides `DeprecationWarning`s that developers want to see when
+     upgrading Node or dependencies.
+   - **Recommendation:** Use
+     `NODE_OPTIONS=--no-warnings=ExperimentalWarning` in the test scripts
+     instead. See Required Change 1 below.
+
+### Edge Cases Not Covered
+
+1. **Cross-platform env var syntax.**
+   - **Current Plan:** Uses inline `VAR=val command` in npm scripts.
+   - **Reality:** Works on macOS/Linux (local dev + GitHub Actions
+     `ubuntu-latest`). Does not work in Windows `cmd` without `cross-env`.
+   - **Recommendation:** Accept as a known limitation — no Windows
+     contributors or CI runners are in scope. Do not add `cross-env` just for
+     this. Note in the CLAUDE.md blurb if space allows.
+
+2. **Coverage output in CI.**
+   - **Current Plan:** Runs `npm run test:unit`, which invokes
+     `vitest run --coverage`. CI will regenerate the `coverage/` directory.
+   - **Recommendation:** Accept as-is. The `coverage/` directory is already
+     gitignored (`.gitignore` check recommended during implementation; if not,
+     it's not a blocker — `npm ci` + GitHub Actions run in a clean workspace).
+
+### Alternatives Considered (Review)
+
+1. **Use `cross-env` for portable env var setting.**
+   - **Pros:** Windows support.
+   - **Cons:** Extra dependency, no current Windows need.
+   - **Verdict:** Not worth it. ❌
+
+2. **Patch jsdom to stop setting the experimental flag.**
+   - **Pros:** Addresses root cause.
+   - **Cons:** Requires upstream PR or patch-package — disproportionate cost
+     for a cosmetic warning. ❌
+
+3. **Accept the warning, document it in CLAUDE.md, skip the env var change.**
+   - **Pros:** Zero script churn.
+   - **Cons:** The whole reason #39 was filed is that the warning was
+     mis-read as a crash. Silencing removes the ambiguity permanently. ❌
+
+### Risks and Concerns
+
+1. **Node 22 vs Node 25 behavior divergence.**
+   - **Likelihood:** Low.
+   - **Impact:** Medium.
+   - **Mitigation:** CI runs on Node 22 (current LTS); local dev on Node 25.
+     Both are Node 22+, which is when `localStorage`/jsdom 29 behaviour
+     stabilised. Verified: msw 2.13.4's cookieStore already guards
+     `typeof localStorage.getItem !== 'function'`. No behaviour difference
+     expected, but confirm the CI run passes on the first PR before merge.
+
+2. **Hiding real future warnings.**
+   - **Likelihood:** Low.
+   - **Impact:** Medium.
+   - **Mitigation:** Use `--no-warnings=ExperimentalWarning` (narrow) rather
+     than `NODE_NO_WARNINGS=1` (broad). Deprecation warnings still surface.
+
+3. **CI workflow placeholder was intentional.**
+   - **Likelihood:** Low.
+   - **Impact:** Low.
+   - **Mitigation:** Replacing the placeholder is explicitly what #39 asks for
+     (and aligns with `CLAUDE.md` which describes the test commands as the
+     quality gate). Low risk of stepping on intentional design.
+
+### Required Changes
+
+**Changes that must be made before implementation:**
+
+- [ ] **Change 1:** Swap `NODE_NO_WARNINGS=1` for
+      `NODE_OPTIONS=--no-warnings=ExperimentalWarning` in the `test:unit` and
+      `test:watch` scripts. Update the Step 3 snippet and the CLAUDE.md note
+      in Step 4 accordingly. This narrows the silence to the one warning
+      category we actually want hidden.
+
+### Optional Improvements
+
+- [ ] Add a short comment in `.github/workflows/ci.yml` noting where Playwright
+      / E2E would be added later, so the next contributor doesn't have to
+      re-discover that decision.
+- [ ] Verify `coverage/` is gitignored during implementation; add if missing.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+      (reporter's real concern: tests running in CI)
+- [x] All acceptance criteria from issue are covered
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate (verified
+      `vite.config.ts`, `src/__tests__/SearchView.test.tsx`,
+      `src/test/msw-server.ts`, `.github/workflows/ci.yml`,
+      `node_modules/msw/src/core/utils/cookieStore.ts`)
+- [x] Security implications considered (no new attack surface; CI uses pinned
+      Node setup action)
+- [x] Performance impact assessed (CI job adds ~30-60s wall time on PRs —
+      acceptable)
+- [x] Test strategy covers critical paths (existing 22-test suite is the
+      critical path; no new tests required)
+- [x] Documentation updates planned (CLAUDE.md note)
+- [x] Related issues/dependencies identified (#36, ef09120)
+- [x] Breaking changes documented (none — CI workflow replacement is additive
+      from a developer workflow perspective)
