@@ -41,10 +41,15 @@ export const resetRateLimit = (): void => {
 export const resolveClientKey = (
   headers: Record<string, string | undefined>
 ): string => {
-  const forwarded = headers['x-forwarded-for'] ?? headers['X-Forwarded-For'];
+  const normalised: Record<string, string | undefined> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    normalised[key.toLowerCase()] = value;
+  }
+
+  const forwarded = normalised['x-forwarded-for'];
   if (forwarded) {
     const first = forwarded.split(',')[0]?.trim();
     if (first) return first;
   }
-  return headers['client-ip'] ?? 'unknown';
+  return normalised['client-ip'] ?? 'unknown';
 };
