@@ -1,7 +1,7 @@
 # GitHub Issue #60: fix(request): redact network-error details from 502 client response
 
 **Issue:** [#60](https://github.com/denhamparry/djrequests/issues/60)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-16
 
 ## Problem Statement
