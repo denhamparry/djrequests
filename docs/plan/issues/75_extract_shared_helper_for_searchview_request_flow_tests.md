@@ -1,7 +1,7 @@
 # GitHub Issue #75: test(client): extract shared helper for SearchView request-flow tests
 
 **Issue:** [#75](https://github.com/denhamparry/djrequests/issues/75)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-16
 
 ## Problem Statement
