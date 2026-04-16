@@ -208,6 +208,32 @@ describe('request function', () => {
     errorSpy.mockRestore();
   });
 
+  it('logs network errors server-side and returns a generic client message', async () => {
+    fetchMock.mockRejectedValueOnce(
+      new Error('getaddrinfo ENOTFOUND docs.google.com')
+    );
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const response = await handler(
+      makeEvent({
+        body: JSON.stringify({
+          song: { id: '1', title: 'T', artist: 'A' },
+          requester: { name: 'Avery' }
+        })
+      }),
+      {} as any
+    );
+
+    expect(response.statusCode).toBe(502);
+    const body = JSON.parse(response.body);
+    expect(body.error).toBe('Failed to reach the request service.');
+    expect(body.error).not.toMatch(/ENOTFOUND/);
+    expect(body.error).not.toMatch(/getaddrinfo/);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+
+    errorSpy.mockRestore();
+  });
+
   it('returns error when Google Form submission fails', async () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 500 });
 

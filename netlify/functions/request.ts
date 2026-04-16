@@ -134,10 +134,9 @@ export const handler: Handler = async (event) => {
       body: params.toString()
     });
   } catch (networkError) {
+    console.error('[request] Google Form network error:', networkError);
     return jsonResponse(502, {
-      error: `Failed to submit to Google Form: ${
-        networkError instanceof Error ? networkError.message : 'Unknown error'
-      }`
+      error: 'Failed to reach the request service.'
     });
   }
 
