@@ -1,7 +1,7 @@
 # GitHub Issue #83: feat(ui): add play-preview overlay on album artwork
 
 **Issue:** [#83](https://github.com/denhamparry/djrequests/issues/83)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -350,3 +350,153 @@ prototype.
   in sync with media state (media is source of truth).
 - Always await/catch `audio.play()` to tolerate autoplay rejections.
 - Keep SVG icons inline — no dep additions.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+**Original Plan Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved (with required refinements)
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation; address Required Changes
+  during Phase 3 (they do not require plan re-revision)
+
+### Strengths
+
+- Correctly identifies that the existing UI has **no card-level click
+  handler or modal** — the issue's wording about "bubbling to the card
+  which opens the request modal" is a phantom concern, and the plan
+  names that out loud while still keeping `stopPropagation` as a
+  defensive measure.
+- Single-shared-`<audio>` + `playingId` state is the right architectural
+  call; it makes the single-player invariant free and avoids 20 audio
+  elements on scroll.
+- Test strategy correctly anticipates the jsdom
+  `HTMLMediaElement.play()` gap.
+- Playwright config already includes `mobile-chrome` (Pixel 5), so the
+  smoke extension gets mobile coverage for free — worth noting.
+- `preload="none"` chosen correctly for mobile data friendliness.
+- Scope is tight; all issue out-of-scope items (progress ring, waveform,
+  hover-autoplay, offline cache) are deferred.
+
+### Gaps Identified
+
+1. **Gap 1:** aria-label uses only `{title}`, but the issue asks for
+   `Preview {track} by {artist}`.
+   - **Impact:** Medium (accessibility + disambiguation when two tracks
+     share a title).
+   - **Recommendation:** Include both title and artist in the aria-label.
+
+2. **Gap 2:** Prototype-level stubbing of
+   `HTMLMediaElement.prototype.play/pause/load` pollutes every other
+   test in the same Vitest process.
+   - **Impact:** Medium (could mask regressions in unrelated tests that
+     happen to exercise media, however unlikely in this codebase).
+   - **Recommendation:** Use `vi.spyOn(HTMLMediaElement.prototype, 'play')`
+     and `.mockRestore()` in `afterEach`, OR move the stubs into a
+     dedicated `src/test/setup.ts` wired via `test.setupFiles`. Either
+     is fine; spy + restore is lower-blast-radius.
+
+3. **Gap 3:** No explicit handling for the "`play()` was interrupted by
+   a call to `pause()`" `AbortError` that fires when users tap rapidly.
+   - **Impact:** Low (noisy console in prod, not a functional bug).
+   - **Recommendation:** The plan's `.catch()` on `audio.play()` must
+     swallow `name === 'AbortError'` silently; everything else gets
+     `console.warn`.
+
+### Edge Cases Not Covered
+
+1. **Edge case 1:** Search results re-render with a different track list
+   while a preview is playing (e.g. the user types a new query).
+   - **Current Plan:** Not addressed — the audio element keeps playing
+     because `playingId` still points at a song no longer in `results`.
+   - **Recommendation:** Add a `useEffect` in `App.tsx` watching
+     `[results]` that, if `playingId` is set and the track is no longer
+     in `results`, pauses the audio and clears `playingId`.
+
+2. **Edge case 2:** Audio network error (offline, 404 on preview CDN).
+   - **Current Plan:** Silent clear on the `error` event.
+   - **Recommendation:** MVP silent-clear is acceptable (request flow
+     still works). Optionally surface a brief error icon — not
+     required.
+
+3. **Edge case 3:** Playwright `addInitScript` stub must both resolve
+   the play Promise AND dispatch the `playing` event on the element;
+   otherwise `loadingId` never clears in the real DOM.
+   - **Current Plan:** Mentions `dispatches 'playing'` for Vitest but
+     less explicit for Playwright.
+   - **Recommendation:** Spell out the Playwright stub payload in
+     Step 6 (`const p = HTMLMediaElement.prototype.play; ... dispatchEvent(new Event('playing'))`).
+
+### Alternatives Considered (Review)
+
+1. **Alternative: native `<audio controls>` inline in each card.**
+   - **Pros:** Zero custom state, full accessibility for free.
+   - **Cons:** ~30px tall, clashes with card visual design, inconsistent
+     cross-browser styling.
+   - **Verdict:** Plan's custom-button choice is correct. ✅
+
+2. **Alternative: dedicated `useAudioPreview` hook.**
+   - **Pros:** Extracts audio state/ref, reusable later.
+   - **Cons:** Over-engineered for one consumer.
+   - **Verdict:** Keep state in `App.tsx`; extract only if reused. ✅
+
+### Risks and Concerns
+
+1. **Risk: visual obstruction of album art.**
+   - **Likelihood:** Medium (semi-transparent full-cover overlay could
+     hide artwork detail).
+   - **Impact:** Low (aesthetic).
+   - **Mitigation:** Consider a smaller corner button (28×28 visual,
+     44×44 tap target via padding) rather than a full-cover overlay.
+     Revisit during CSS implementation.
+
+2. **Risk: autoplay policy rejection on first interaction.**
+   - **Likelihood:** Low (click handler counts as user gesture).
+   - **Impact:** Low (`.catch()` handles it).
+   - **Mitigation:** Already planned.
+
+3. **Risk: iOS ringer switch silencing with no feedback.**
+   - **Likelihood:** High for iPhone users with silenced phones.
+   - **Impact:** Low–Medium (user confusion).
+   - **Mitigation:** Already planned — documented in CLAUDE.md.
+
+### Required Changes
+
+**Must be made during implementation:**
+
+- [ ] aria-label includes both title AND artist
+- [ ] Use `vi.spyOn(...).mockRestore()` or a scoped setup file for
+      HTMLMediaElement stubs — do not permanently mutate the prototype
+- [ ] Add results-change effect that pauses audio and clears
+      `playingId` when the currently-playing track drops out of
+      results
+- [ ] The `audio.play()` `.catch()` must silently swallow `AbortError`
+
+### Optional Improvements
+
+- [ ] Smaller corner button (28×28 visual, 44×44 tap target) to avoid
+      obscuring artwork — revisit during CSS implementation
+- [ ] Extract a `useAudioPreview` hook if/when a second consumer lands
+- [ ] Brief error icon on preview network failure (2s auto-dismiss)
+      instead of silent clear
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate
+- [x] Security implications considered (no XSS risk — all data from
+      our own search function)
+- [x] Performance impact assessed (`preload="none"` prevents N×media fetches)
+- [x] Test strategy covers critical paths and edge cases (after
+      Required Changes)
+- [x] Documentation updates planned (CLAUDE.md iOS caveat)
+- [x] Related issues/dependencies identified
+- [x] Breaking changes documented (none)
+
+**Status change:** Planning → Reviewed (Approved)
