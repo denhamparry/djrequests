@@ -49,6 +49,19 @@ const deriveFormResponseConfig = () => {
   };
 };
 
+const classifyFetchError = (error: unknown): string => {
+  if (error instanceof Error && error.name === 'AbortError') {
+    return '[request] Google Form fetch aborted';
+  }
+  if (
+    error instanceof TypeError &&
+    (error as { cause?: unknown }).cause !== undefined
+  ) {
+    return '[request] Google Form network error';
+  }
+  return '[request] Google Form fetch invocation error';
+};
+
 const appendField = (params: URLSearchParams, fieldId: string, value?: string | null) => {
   if (!fieldId) {
     return;
@@ -133,8 +146,8 @@ export const handler: Handler = async (event) => {
       },
       body: params.toString()
     });
-  } catch (networkError) {
-    console.error('[request] Google Form network error:', networkError);
+  } catch (fetchError) {
+    console.error(classifyFetchError(fetchError), fetchError);
     return jsonResponse(502, {
       error: 'Failed to reach the request service.'
     });
