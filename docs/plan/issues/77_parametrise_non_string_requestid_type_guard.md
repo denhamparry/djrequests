@@ -1,7 +1,7 @@
 # GitHub Issue #77: test(client): parametrise non-string requestId type-guard over null/array/object
 
 **Issue:** [#77](https://github.com/denhamparry/djrequests/issues/77)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-16
 
 ## Problem Statement
