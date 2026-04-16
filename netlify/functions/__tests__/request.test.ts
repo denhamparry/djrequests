@@ -208,10 +208,13 @@ describe('request function', () => {
     errorSpy.mockRestore();
   });
 
-  it('logs network errors server-side and returns a generic client message', async () => {
-    fetchMock.mockRejectedValueOnce(
-      new Error('getaddrinfo ENOTFOUND docs.google.com')
-    );
+  it('logs true network errors with a network label and returns a redacted 502', async () => {
+    const cause = Object.assign(new Error('getaddrinfo ENOTFOUND docs.google.com'), {
+      code: 'ENOTFOUND'
+    });
+    const fetchFailure = new TypeError('fetch failed');
+    (fetchFailure as { cause?: unknown }).cause = cause;
+    fetchMock.mockRejectedValueOnce(fetchFailure);
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const response = await handler(
@@ -230,6 +233,53 @@ describe('request function', () => {
     expect(body.error).not.toMatch(/ENOTFOUND/);
     expect(body.error).not.toMatch(/getaddrinfo/);
     expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy.mock.calls[0][0]).toBe('[request] Google Form network error');
+
+    errorSpy.mockRestore();
+  });
+
+  it('labels AbortError distinctly from network errors', async () => {
+    const abort = new Error('aborted');
+    abort.name = 'AbortError';
+    fetchMock.mockRejectedValueOnce(abort);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const response = await handler(
+      makeEvent({
+        body: JSON.stringify({
+          song: { id: '1', title: 'T', artist: 'A' },
+          requester: { name: 'Avery' }
+        })
+      }),
+      {} as any
+    );
+
+    expect(response.statusCode).toBe(502);
+    expect(JSON.parse(response.body).error).toBe('Failed to reach the request service.');
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy.mock.calls[0][0]).toBe('[request] Google Form fetch aborted');
+
+    errorSpy.mockRestore();
+  });
+
+  it('labels non-network fetch failures as invocation errors', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('unexpected programmer error'));
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const response = await handler(
+      makeEvent({
+        body: JSON.stringify({
+          song: { id: '1', title: 'T', artist: 'A' },
+          requester: { name: 'Avery' }
+        })
+      }),
+      {} as any
+    );
+
+    expect(response.statusCode).toBe(502);
+    expect(JSON.parse(response.body).error).toBe('Failed to reach the request service.');
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy.mock.calls[0][0]).toBe('[request] Google Form fetch invocation error');
 
     errorSpy.mockRestore();
   });
