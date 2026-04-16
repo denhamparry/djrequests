@@ -69,4 +69,9 @@ describe('resolveClientKey', () => {
   it('returns "unknown" when no IP headers are present', () => {
     expect(resolveClientKey({})).toBe('unknown');
   });
+
+  it('lowercases header keys', () => {
+    expect(resolveClientKey({ 'X-Forwarded-For': '1.2.3.4' })).toBe('1.2.3.4');
+    expect(resolveClientKey({ 'Client-IP': '9.9.9.9' })).toBe('9.9.9.9');
+  });
 });
