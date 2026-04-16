@@ -4,6 +4,8 @@ import { corsHeaders } from './_cors';
 import { checkRateLimit, resolveClientKey } from './_rateLimit';
 import { validateRequestBody } from './_validate';
 
+const generateRequestId = (): string => crypto.randomUUID().slice(0, 8);
+
 const jsonResponse = (
   statusCode: number,
   payload: Record<string, unknown>,
@@ -113,14 +115,19 @@ export const handler: Handler = async (event) => {
   }
 
   const { song, requester } = validation.value;
+  const requestId = generateRequestId();
 
   let formConfig: ReturnType<typeof deriveFormResponseConfig>;
   try {
     formConfig = deriveFormResponseConfig();
   } catch (configError) {
-    console.error('[request] Google Form configuration error:', configError);
+    console.error(
+      `[request] Google Form configuration error (requestId=${requestId}):`,
+      configError
+    );
     return jsonResponse(500, {
-      error: 'Request service is temporarily unavailable.'
+      error: 'Request service is temporarily unavailable.',
+      requestId
     });
   }
 
@@ -147,15 +154,23 @@ export const handler: Handler = async (event) => {
       body: params.toString()
     });
   } catch (fetchError) {
-    console.error(classifyFetchError(fetchError), fetchError);
+    console.error(
+      `${classifyFetchError(fetchError)} (requestId=${requestId})`,
+      fetchError
+    );
     return jsonResponse(502, {
-      error: 'Failed to reach the request service.'
+      error: 'Failed to reach the request service.',
+      requestId
     });
   }
 
   if (!response.ok) {
+    console.error(
+      `[request] Google Form responded with status ${response.status} (requestId=${requestId})`
+    );
     return jsonResponse(502, {
-      error: `Google Form responded with status ${response.status}`
+      error: `Google Form responded with status ${response.status}`,
+      requestId
     });
   }
 

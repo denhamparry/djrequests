@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSongSearch } from './hooks/useSongSearch';
-import { submitSongRequest } from './lib/googleForm';
+import { RequestError, submitSongRequest } from './lib/googleForm';
 import squirrelsImage from '../squirrels.jpeg';
 
 const SUBMIT_COOLDOWN_MS = 3000;
@@ -57,8 +57,11 @@ function App() {
         message: `Request for "${song.title}" sent to the DJ queue.`
       });
     } catch (submissionError) {
-      const errorMessage =
+      const baseMessage =
         submissionError instanceof Error ? submissionError.message : 'Request failed.';
+      const requestId =
+        submissionError instanceof RequestError ? submissionError.requestId : undefined;
+      const errorMessage = requestId ? `${baseMessage} (ref: ${requestId})` : baseMessage;
       setRequestFeedback({
         type: 'error',
         message: errorMessage

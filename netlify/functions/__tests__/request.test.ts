@@ -202,7 +202,12 @@ describe('request function', () => {
     expect(body.error).toBe('Request service is temporarily unavailable.');
     expect(body.error).not.toMatch(/GOOGLE_FORM_URL/);
     expect(body.error).not.toMatch(/VITE_GOOGLE_FORM_URL/);
+    expect(body.requestId).toMatch(/^[0-9a-f]{8}$/);
     expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy.mock.calls[0][0]).toContain(
+      '[request] Google Form configuration error'
+    );
+    expect(errorSpy.mock.calls[0][0]).toContain(`(requestId=${body.requestId})`);
     expect(fetchMock).not.toHaveBeenCalled();
 
     errorSpy.mockRestore();
@@ -232,8 +237,11 @@ describe('request function', () => {
     expect(body.error).toBe('Failed to reach the request service.');
     expect(body.error).not.toMatch(/ENOTFOUND/);
     expect(body.error).not.toMatch(/getaddrinfo/);
+    expect(body.requestId).toMatch(/^[0-9a-f]{8}$/);
     expect(errorSpy).toHaveBeenCalledTimes(1);
-    expect(errorSpy.mock.calls[0][0]).toBe('[request] Google Form network error');
+    expect(errorSpy.mock.calls[0][0]).toBe(
+      `[request] Google Form network error (requestId=${body.requestId})`
+    );
 
     errorSpy.mockRestore();
   });
@@ -255,9 +263,13 @@ describe('request function', () => {
     );
 
     expect(response.statusCode).toBe(502);
-    expect(JSON.parse(response.body).error).toBe('Failed to reach the request service.');
+    const abortBody = JSON.parse(response.body);
+    expect(abortBody.error).toBe('Failed to reach the request service.');
+    expect(abortBody.requestId).toMatch(/^[0-9a-f]{8}$/);
     expect(errorSpy).toHaveBeenCalledTimes(1);
-    expect(errorSpy.mock.calls[0][0]).toBe('[request] Google Form fetch aborted');
+    expect(errorSpy.mock.calls[0][0]).toBe(
+      `[request] Google Form fetch aborted (requestId=${abortBody.requestId})`
+    );
 
     errorSpy.mockRestore();
   });
@@ -277,15 +289,20 @@ describe('request function', () => {
     );
 
     expect(response.statusCode).toBe(502);
-    expect(JSON.parse(response.body).error).toBe('Failed to reach the request service.');
+    const invocationBody = JSON.parse(response.body);
+    expect(invocationBody.error).toBe('Failed to reach the request service.');
+    expect(invocationBody.requestId).toMatch(/^[0-9a-f]{8}$/);
     expect(errorSpy).toHaveBeenCalledTimes(1);
-    expect(errorSpy.mock.calls[0][0]).toBe('[request] Google Form fetch invocation error');
+    expect(errorSpy.mock.calls[0][0]).toBe(
+      `[request] Google Form fetch invocation error (requestId=${invocationBody.requestId})`
+    );
 
     errorSpy.mockRestore();
   });
 
   it('returns error when Google Form submission fails', async () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 500 });
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const response = await handler(
       makeEvent({
@@ -298,7 +315,38 @@ describe('request function', () => {
     );
 
     expect(response.statusCode).toBe(502);
-    expect(JSON.parse(response.body).error).toMatch(/responded with status/i);
+    const body = JSON.parse(response.body);
+    expect(body.error).toMatch(/responded with status/i);
+    expect(body.requestId).toMatch(/^[0-9a-f]{8}$/);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy.mock.calls[0][0]).toBe(
+      `[request] Google Form responded with status 500 (requestId=${body.requestId})`
+    );
+
+    errorSpy.mockRestore();
+  });
+
+  it('does not include requestId on 2xx/400/429 responses', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200 });
+
+    const okResponse = await handler(
+      makeEvent({
+        body: JSON.stringify({
+          song: { id: '1', title: 'T', artist: 'A' },
+          requester: { name: 'Avery' }
+        })
+      }),
+      {} as any
+    );
+    expect(okResponse.statusCode).toBe(200);
+    expect(JSON.parse(okResponse.body).requestId).toBeUndefined();
+
+    const badResponse = await handler(
+      makeEvent({ body: JSON.stringify({}) }),
+      {} as any
+    );
+    expect(badResponse.statusCode).toBe(400);
+    expect(JSON.parse(badResponse.body).requestId).toBeUndefined();
   });
 
   it('returns 429 with Retry-After after 5 rapid submissions from the same IP', async () => {

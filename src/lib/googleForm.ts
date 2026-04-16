@@ -4,6 +4,16 @@ type RequestResponse = {
   message?: string;
 };
 
+export class RequestError extends Error {
+  readonly requestId?: string;
+
+  constructor(message: string, requestId?: string) {
+    super(message);
+    this.name = 'RequestError';
+    this.requestId = requestId;
+  }
+}
+
 export async function submitSongRequest(
   song: Song,
   details: Requester
@@ -24,7 +34,9 @@ export async function submitSongRequest(
   if (!response.ok) {
     const errorMessage =
       typeof payload?.error === 'string' ? payload.error : 'Unable to submit request.';
-    throw new Error(errorMessage);
+    const requestId =
+      typeof payload?.requestId === 'string' ? payload.requestId : undefined;
+    throw new RequestError(errorMessage, requestId);
   }
 
   return payload;
