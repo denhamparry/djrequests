@@ -1,7 +1,7 @@
 # GitHub Issue #50: log config errors server-side and redact details from client response
 
 **Issue:** [#50](https://github.com/denhamparry/djrequests/issues/50)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Branch:** denhamparry.co.uk/feat/gh-issue-050
 **Date:** 2026-04-16
 
@@ -105,3 +105,57 @@ try {
 - Prior art for the pattern: existing 502 network-error branch already
   returns a structured message; this change brings the 500 config branch in
   line with "log details, return generic string".
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation
+
+### Strengths
+
+- Scope matches the issue exactly: log + redact only, no adjacent refactors.
+- Out-of-scope section explicitly calls out the analogous 502 network-error
+  leak, acknowledging it without expanding scope.
+- Test plan asserts both sides of the change (side-effect logging + body
+  content), not just one.
+- Verified: `netlify/` has no existing `console.*` call sites, so adding the
+  first `console.error` needs no coordination with a shared logger
+  abstraction.
+
+### Verified Against Codebase
+
+- `netlify/functions/request.ts:104-111` — catch branch confirmed to return
+  `configError.message` verbatim. Replacement targets the correct lines.
+- `netlify/functions/__tests__/request.test.ts` — existing tests stub
+  `VITE_GOOGLE_FORM_URL` in `beforeEach`; the new missing-config test needs
+  to explicitly delete both env keys after the base setup.
+
+### Required Changes
+
+None.
+
+### Optional Improvements
+
+- In the new test, silence the spy with
+  `vi.spyOn(console, 'error').mockImplementation(() => {})` so the assertion
+  passes without polluting the test runner output. Minor quality-of-life,
+  non-blocking.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered (log + generic message)
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate
+- [x] Security implications considered (info-leak redaction is the point)
+- [x] Performance impact assessed (none — single `console.error` per 500)
+- [x] Test strategy covers critical paths and edge cases
+- [x] Documentation updates planned (none needed — internal behaviour)
+- [x] Related issues/dependencies identified (2XX network-error leak noted)
+- [x] Breaking changes documented (none — response shape preserved)
