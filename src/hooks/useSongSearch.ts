@@ -1,13 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
+import type { Song } from '../../shared/types';
 
-export type Song = {
-  id: string;
-  title: string;
-  artist: string;
-  album: string | null;
-  artworkUrl: string | null;
-  previewUrl: string | null;
-};
+export type { Song };
 
 type SearchStatus = 'idle' | 'loading' | 'success' | 'error';
 

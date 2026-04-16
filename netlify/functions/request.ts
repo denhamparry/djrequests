@@ -101,16 +101,13 @@ export const handler: Handler = async (event) => {
 
   const { song, requester } = validation.value;
 
-  const formConfig = (() => {
-    try {
-      return deriveFormResponseConfig();
-    } catch (configError) {
-      return configError;
-    }
-  })();
-
-  if (formConfig instanceof Error) {
-    return jsonResponse(500, { error: formConfig.message });
+  let formConfig: ReturnType<typeof deriveFormResponseConfig>;
+  try {
+    formConfig = deriveFormResponseConfig();
+  } catch (configError) {
+    return jsonResponse(500, {
+      error: configError instanceof Error ? configError.message : 'Configuration error'
+    });
   }
 
   const params = new URLSearchParams(formConfig.defaultParams);
