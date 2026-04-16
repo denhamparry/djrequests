@@ -1,7 +1,7 @@
 # GitHub Issue #35: vitest setup crashes in jsdom — MSW CookieStore calls localStorage.getItem
 
 **Issue:** [#35](https://github.com/denhamparry/djrequests/issues/35)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -262,3 +262,106 @@ change is infrastructural. Coverage numbers should be equal or better
   genuinely applies to every test.
 - Prefer `// @vitest-environment ...` directives per test file to make
   environment expectations explicit and local.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+**Original Plan Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation
+
+### Strengths
+
+- Correctly identifies the root cause: MSW's `CookieStore` initialization
+  during `setupServer()` touches `localStorage`, and the global
+  `setupFiles` pays that cost for every test file regardless of need.
+- Test-file inventory is verified — `SearchView.test.tsx` is in fact the
+  only consumer of `src/test/msw-server.ts`. Grep confirmed (only
+  `vitest.setup.ts` and `SearchView.test.tsx` import it).
+- Plan preserves the jest-dom matcher import (`toBeInTheDocument` is used
+  on lines 37, 39, 40, 62, 84, 127 of `SearchView.test.tsx`) by moving it
+  into that file.
+- The `// @vitest-environment node` directive is a real, documented Vitest
+  feature — no API misuse.
+- Minimal change surface (7 files), no dependency churn, follow-up for the
+  version bump is captured as a separate enhancement.
+
+### Gaps Identified
+
+None material. The plan correctly captures the MSW lifecycle
+(`listen`/`resetHandlers`/`close`) that the current `vitest.setup.ts`
+provides; omitting any of those would regress the existing test isolation
+between the four `it()` blocks.
+
+### Edge Cases Not Covered
+
+1. **Edge Case:** Future tests under `src/**/*.test.tsx` that also need MSW
+   - **Current Plan:** Inlines MSW into the single current consumer.
+   - **Recommendation (optional):** Note in the plan that if a second
+     MSW-using test is added, extracting a small helper (e.g.
+     `src/test/msw-lifecycle.ts` exporting a function that wires the
+     hooks) is preferred over reviving a global setup file. Not a blocker.
+
+### Alternatives Evaluated During Review
+
+1. **Alternative: Keep global setup, switch environment to `node` by
+   default, opt the React test into `jsdom`.**
+   - **Pros:** Only one file would need a per-file environment directive.
+   - **Cons:** Still runs MSW setup for the Node tests, which is the
+     actual source of the crash — doesn't fix the root cause.
+   - **Verdict:** Chosen approach is better.
+
+2. **Alternative: Bump `msw` and `jsdom` to compatible versions.**
+   - **Pros:** No test file changes.
+   - **Cons:** Doesn't address the mis-scoping; the Node tests still pay
+     the jsdom tax; version pair may regress other behaviour.
+   - **Verdict:** Defer as a follow-up enhancement (plan already notes
+     this).
+
+### Risks and Concerns
+
+1. **Risk:** If `src/__tests__/SearchView.test.tsx` forgets to call
+   `server.resetHandlers()` between tests, earlier handlers may bleed
+   into later tests.
+   - **Likelihood:** Low (plan explicitly includes the `afterEach`).
+   - **Impact:** Medium (flaky tests).
+   - **Mitigation:** Plan already includes all three lifecycle hooks.
+
+2. **Risk:** Removing `setupFiles` removes the global jest-dom import; if
+   any other `*.test.tsx` file under `src/` starts using jest-dom
+   matchers, it will silently lack types/runtime.
+   - **Likelihood:** Low (only one React test exists).
+   - **Impact:** Low (TypeScript error surfaces immediately).
+   - **Mitigation:** Acceptable — the explicit import per React test file
+     is a common pattern.
+
+### Required Changes
+
+None.
+
+### Optional Improvements
+
+- [ ] Add a one-line comment in `vite.config.ts` (or a short note in
+      `CLAUDE.md` testing section) explaining why `setupFiles` is
+      intentionally empty, to prevent a future contributor from
+      reintroducing a global MSW setup.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate
+- [x] Security implications considered (none — test-only infra)
+- [x] Performance impact assessed (Node-env tests now faster; no regression)
+- [x] Test strategy covers critical paths (all five existing tests must
+      still pass)
+- [x] Documentation updates planned (optional CLAUDE.md note)
+- [x] Related issues/dependencies identified (PR #34, #30)
+- [x] Breaking changes documented (none for users; contributor-facing
+      change to `setupFiles`)
