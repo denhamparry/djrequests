@@ -1,7 +1,7 @@
 # GitHub Issue #60: fix(request): redact network-error details from 502 client response
 
 **Issue:** [#60](https://github.com/denhamparry/djrequests/issues/60)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-16
 
 ## Problem Statement
@@ -242,3 +242,97 @@ only and does not exercise fetch-throw behaviour.
   log filters remain useful.
 - When redacting, preserve HTTP status codes — they are part of the public
   contract with the client and with any upstream monitoring.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-16
+**Original Plan Date:** 2026-04-16
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation
+
+### Strengths
+
+- **Exact pattern match.** The proposed change mirrors the verified
+  config-error branch at `netlify/functions/request.ts:104-112` — same log
+  prefix, same structure, same handler contract.
+- **Accurate references.** All line ranges
+  (`request.ts:136-142`, `request.ts:104-112`,
+  `request.test.ts:185-209`, `request.test.ts:211-226`) are correct.
+- **Minimal blast radius.** No dependency changes, no status-code changes,
+  no handler contract changes, no shared-type changes. The only observable
+  behaviour change is the client body on fetch-throw.
+- **Distinct generic messages.** Keeping the 500 and 502 messages
+  distinguishable (permanent misconfig vs transient upstream) preserves
+  client UX signal without leaking internals.
+- **Closes a test gap.** The `fetch`-throw path currently has no test
+  coverage; the new case adds it without perturbing the adjacent
+  `!response.ok` 502 test (disjoint mock setup).
+
+### Gaps Identified
+
+None material.
+
+### Edge Cases Not Covered
+
+1. **Non-Error thrown value.** The existing code's
+   `networkError instanceof Error ? ... : 'Unknown error'` branch
+   disappears under the new implementation. That's intentional — the
+   client body is generic either way — and `console.error` will log any
+   value correctly.
+   - **Current Plan:** Logs the raw value, returns the generic body.
+   - **Recommendation:** No change. Behaviour is correct.
+
+### Alternatives Evaluated
+
+1. **Single shared helper** to emit
+   `console.error` + generic response across both branches.
+   - **Pros:** DRY.
+   - **Cons:** Premature abstraction for two call sites that use
+     different status codes, different messages, and different log
+     subjects. Repetition is cheaper than the helper here.
+   - **Verdict:** Plan's inline approach is better.
+
+### Risks and Concerns
+
+1. **Client-visible message change.** Any client code or E2E test that
+   asserts on the old string (`/Failed to submit to Google Form/`) will
+   break.
+   - **Likelihood:** Low. Search confirms no frontend or test code
+     matches that string (only the handler itself).
+   - **Impact:** Low.
+   - **Mitigation:** None required; action-plan will run the full test
+     suite which would surface any such assertion.
+
+### Required Changes
+
+None.
+
+### Optional Improvements
+
+- [ ] Add a one-line comment above the new `console.error` calls (both
+      branches) explaining why the raw error stays server-side. Skipped
+      in the plan and I agree — the `[request]` prefix convention and
+      the existing config-error precedent make intent obvious.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate (re-verified against
+      current `request.ts` and `request.test.ts`)
+- [x] Security implications considered and addressed (redaction is the
+      point of the change)
+- [x] Performance impact assessed (none — same code path, one log call)
+- [x] Test strategy covers critical paths and edge cases
+- [x] Documentation updates planned (not applicable — internal change)
+- [x] Related issues/dependencies identified (#50, #59)
+- [x] Breaking changes documented (client-visible string change noted
+      in Risks)
+
+**Status update:** Reviewed (Approved)
