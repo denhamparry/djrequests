@@ -122,8 +122,7 @@ describe('request function', () => {
     expect(JSON.parse(response.body).message).toMatch(/submitted successfully/i);
   });
 
-  it('accepts a payload without a requester block', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, status: 200 });
+  it('returns 400 when requester.name is missing', async () => {
     const response = await handler(
       makeEvent({
         body: JSON.stringify({
@@ -133,10 +132,27 @@ describe('request function', () => {
       {} as any
     );
 
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.body).error).toBe('requester.name is required');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('accepts a payload with only requester.name', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200 });
+    const response = await handler(
+      makeEvent({
+        body: JSON.stringify({
+          song: { id: '1', title: 'T', artist: 'A' },
+          requester: { name: 'Avery' }
+        })
+      }),
+      {} as any
+    );
+
     expect(response.statusCode).toBe(200);
     const body = fetchMock.mock.calls[0][1]?.body as string;
     const params = new URLSearchParams(body);
-    expect(params.get(FORM_FIELD_IDS.requesterName)).toBe('');
+    expect(params.get(FORM_FIELD_IDS.requesterName)).toBe('Avery');
   });
 
   it('uses ALLOWED_ORIGIN for CORS header on responses and OPTIONS', async () => {
@@ -145,7 +161,10 @@ describe('request function', () => {
 
     const postResponse = await handler(
       makeEvent({
-        body: JSON.stringify({ song: { id: '1', title: 't', artist: 'a' } })
+        body: JSON.stringify({
+          song: { id: '1', title: 't', artist: 'a' },
+          requester: { name: 'Avery' }
+        })
       }),
       {} as any
     );
@@ -169,7 +188,8 @@ describe('request function', () => {
     const response = await handler(
       makeEvent({
         body: JSON.stringify({
-          song: { id: '1', title: 'Test', artist: 'Artist' }
+          song: { id: '1', title: 'Test', artist: 'Artist' },
+          requester: { name: 'Avery' }
         })
       }),
       {} as any
@@ -182,7 +202,8 @@ describe('request function', () => {
   it('returns 429 with Retry-After after 5 rapid submissions from the same IP', async () => {
     fetchMock.mockResolvedValue({ ok: true, status: 200 });
     const body = JSON.stringify({
-      song: { id: '1', title: 'T', artist: 'A' }
+      song: { id: '1', title: 'T', artist: 'A' },
+      requester: { name: 'Avery' }
     });
 
     for (let i = 0; i < 5; i += 1) {
@@ -205,7 +226,8 @@ describe('request function', () => {
   it('shares the fallback "unknown" bucket when x-forwarded-for is missing', async () => {
     fetchMock.mockResolvedValue({ ok: true, status: 200 });
     const body = JSON.stringify({
-      song: { id: '1', title: 'T', artist: 'A' }
+      song: { id: '1', title: 'T', artist: 'A' },
+      requester: { name: 'Avery' }
     });
 
     for (let i = 0; i < 5; i += 1) {

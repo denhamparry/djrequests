@@ -8,7 +8,7 @@ export type ValidatedSong = {
 };
 
 export type ValidatedRequester = {
-  name: string | null;
+  name: string;
   dedication: string | null;
   contact: string | null;
 };
@@ -80,7 +80,7 @@ export const validateRequestBody = (raw: unknown): ValidationResult => {
   const previewUrl = optionalString(songObj.previewUrl, 'song.previewUrl');
   if (isErrorResult(previewUrl)) return { ok: false, error: previewUrl.error };
 
-  const name = optionalString(requester.name, 'requester.name');
+  const name = requireString(requester.name, 'requester.name');
   if (isErrorResult(name)) return { ok: false, error: name.error };
   const dedication = optionalString(requester.dedication, 'requester.dedication');
   if (isErrorResult(dedication)) return { ok: false, error: dedication.error };

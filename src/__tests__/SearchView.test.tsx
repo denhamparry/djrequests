@@ -138,6 +138,7 @@ describe('Song search experience', () => {
         const body = await request.json();
         expect(body.song.id).toBe('321');
         expect(body.song.title).toBe('Digital Love');
+        expect(body.requester.name).toBe('Avery');
 
         return HttpResponse.json({ message: 'Song request submitted successfully.' });
       })
@@ -145,6 +146,7 @@ describe('Song search experience', () => {
 
     render(<App />);
 
+    await user.type(screen.getByLabelText(/Your name/i), 'Avery');
     await user.type(screen.getByLabelText(/Search songs/i), 'digital love');
 
     const requestButton = await screen.findByRole('button', {
@@ -156,5 +158,38 @@ describe('Song search experience', () => {
     expect(
       await screen.findByText(/Request for "Digital Love" sent to the DJ queue./i)
     ).toBeInTheDocument();
+  });
+
+  it('disables request buttons until a requester name is entered', async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.get(searchEndpoint, () =>
+        HttpResponse.json({
+          tracks: [
+            {
+              id: '999',
+              title: 'One More Time',
+              artist: 'Daft Punk',
+              album: 'Discovery',
+              artworkUrl: null,
+              previewUrl: null
+            }
+          ]
+        })
+      )
+    );
+
+    render(<App />);
+
+    await user.type(screen.getByLabelText(/Search songs/i), 'daft punk');
+
+    const requestButton = await screen.findByRole('button', {
+      name: /Request "One More Time"/i
+    });
+    expect(requestButton).toBeDisabled();
+
+    await user.type(screen.getByLabelText(/Your name/i), 'Avery');
+    expect(requestButton).toBeEnabled();
   });
 });

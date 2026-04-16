@@ -7,6 +7,8 @@ const SUBMIT_COOLDOWN_MS = 3000;
 
 function App() {
   const { query, setQuery, results, status, message, error } = useSongSearch();
+  const [requesterName, setRequesterName] = useState('');
+  const [dedication, setDedication] = useState('');
   const [requestingSongId, setRequestingSongId] = useState<string | null>(null);
   const [cooldownSongId, setCooldownSongId] = useState<string | null>(null);
   const [requestFeedback, setRequestFeedback] = useState<{
@@ -14,6 +16,9 @@ function App() {
     message: string;
   } | null>(null);
   const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const trimmedName = requesterName.trim();
+  const hasName = trimmedName.length > 0;
 
   useEffect(
     () => () => {
@@ -33,15 +38,20 @@ function App() {
 
   const handleRequest = async (songId: string) => {
     const song = results.find((item) => item.id === songId);
-    if (!song) {
+    if (!song || !hasName) {
       return;
     }
+
+    const trimmedDedication = dedication.trim();
 
     setRequestingSongId(songId);
     setRequestFeedback(null);
 
     try {
-      await submitSongRequest(song);
+      await submitSongRequest(song, {
+        name: trimmedName,
+        dedication: trimmedDedication || undefined
+      });
       setRequestFeedback({
         type: 'success',
         message: `Request for "${song.title}" sent to the DJ queue.`
@@ -74,6 +84,31 @@ function App() {
           Search for a song by title, artist, or album and send it to the DJ booth.
         </p>
       </header>
+
+      <label className="input-label" htmlFor="requester-name">
+        <span className="label-text">Your name</span>
+        <input
+          id="requester-name"
+          aria-label="Your name"
+          placeholder="So the DJ knows who requested it"
+          value={requesterName}
+          autoComplete="name"
+          required
+          onChange={(event) => setRequesterName(event.target.value)}
+        />
+      </label>
+
+      <label className="input-label" htmlFor="dedication">
+        <span className="label-text">Dedication (optional)</span>
+        <input
+          id="dedication"
+          aria-label="Dedication"
+          placeholder="e.g. For Sam's birthday"
+          value={dedication}
+          autoComplete="off"
+          onChange={(event) => setDedication(event.target.value)}
+        />
+      </label>
 
       <label className="input-label" htmlFor="song-search">
         <span className="label-text">Search songs</span>
@@ -134,8 +169,11 @@ function App() {
                 className="request-button"
                 onClick={() => handleRequest(song.id)}
                 disabled={
-                  requestingSongId === song.id || cooldownSongId === song.id
+                  !hasName ||
+                  requestingSongId === song.id ||
+                  cooldownSongId === song.id
                 }
+                title={!hasName ? 'Enter your name to request a song' : undefined}
               >
                 {requestingSongId === song.id
                   ? 'Sending…'
