@@ -57,8 +57,11 @@ describe('validateRequestBody', () => {
     if (!result.ok) expect(result.error).toMatch(/too long/);
   });
 
-  it('accepts minimal valid payload without requester', () => {
-    const result = validateRequestBody({ song: baseSong });
+  it('accepts minimal valid payload with requester.name', () => {
+    const result = validateRequestBody({
+      song: baseSong,
+      requester: { name: 'Avery' }
+    });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.song).toEqual({
@@ -70,16 +73,32 @@ describe('validateRequestBody', () => {
         previewUrl: null
       });
       expect(result.value.requester).toEqual({
-        name: null,
+        name: 'Avery',
         dedication: null,
         contact: null
       });
     }
   });
 
+  it('rejects missing requester.name', () => {
+    const result = validateRequestBody({ song: baseSong });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe('requester.name is required');
+  });
+
+  it('rejects whitespace-only requester.name', () => {
+    const result = validateRequestBody({
+      song: baseSong,
+      requester: { name: '   ' }
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe('requester.name is required');
+  });
+
   it('trims whitespace on required strings', () => {
     const result = validateRequestBody({
-      song: { id: '  1  ', title: ' Song ', artist: ' Artist ' }
+      song: { id: '  1  ', title: ' Song ', artist: ' Artist ' },
+      requester: { name: 'Avery' }
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -121,7 +140,7 @@ describe('validateRequestBody', () => {
   it('treats empty-string optional fields as null', () => {
     const result = validateRequestBody({
       song: { ...baseSong, album: '' },
-      requester: { dedication: '' }
+      requester: { name: 'Avery', dedication: '' }
     });
     expect(result.ok).toBe(true);
     if (result.ok) {

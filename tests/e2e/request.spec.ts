@@ -34,6 +34,7 @@ test('smoke: user can search and prepare a song request', async ({ page }) => {
     const body = request.postDataJSON();
     expect(body.song.id).toBe('321');
     expect(body.song.title).toBe('Digital Love');
+    expect(body.requester.name).toBe('Avery');
 
     return route.fulfill({
       status: 200,
@@ -44,6 +45,7 @@ test('smoke: user can search and prepare a song request', async ({ page }) => {
 
   await page.goto('/');
 
+  await page.fill('input[aria-label="Your name"]', 'Avery');
   await page.fill('input[aria-label="Search songs"]', 'digital love');
   await page.waitForTimeout(400);
 
