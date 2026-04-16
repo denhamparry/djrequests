@@ -118,6 +118,33 @@ describe('rate-limit map bounds', () => {
     expect(_rateLimitHasKeyForTests('ip-0')).toBe(false);
     expect(_rateLimitHasKeyForTests('trigger')).toBe(true);
   });
+
+  it('refreshes recency on touch: touched key survives cap eviction', () => {
+    const t0 = 1_000_000;
+
+    // First call sets lastSweepAt = t0. All subsequent setup stays inside
+    // [t0, t0 + 60_000) so no early sweep fires.
+    checkRateLimit('a', t0);
+    checkRateLimit('b', t0 + 1);
+    // Touch 'a' — with delete-before-set, this moves 'a' to the Map tail.
+    // Insertion order becomes: b, a.
+    checkRateLimit('a', t0 + 2);
+
+    // Fill 9_999 fresh keys so size = 10_001 (a, b, plus 9_999 ip-*).
+    for (let i = 0; i < 9_999; i += 1) {
+      checkRateLimit(`ip-${i}`, t0 + 3 + i);
+    }
+    expect(_rateLimitSizeForTests()).toBe(10_001);
+
+    // Trigger sweep at exactly t0 + 60_000: now - lastSweepAt ==
+    // SWEEP_INTERVAL_MS so sweep fires; cutoff = t0, and every tracked key's
+    // last > t0, so the TTL pass evicts nothing. Only the cap pass can remove
+    // a key here — it drops the oldest-inserted survivor ('b').
+    checkRateLimit('trigger', t0 + 60_000);
+
+    expect(_rateLimitHasKeyForTests('a')).toBe(true);
+    expect(_rateLimitHasKeyForTests('b')).toBe(false);
+  });
 });
 
 describe('resolveClientKey', () => {
