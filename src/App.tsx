@@ -1,15 +1,35 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSongSearch } from './hooks/useSongSearch';
 import { submitSongRequest } from './lib/googleForm';
 import squirrelsImage from '../squirrels.jpeg';
 
+const SUBMIT_COOLDOWN_MS = 3000;
+
 function App() {
   const { query, setQuery, results, status, message, error } = useSongSearch();
   const [requestingSongId, setRequestingSongId] = useState<string | null>(null);
+  const [cooldownSongId, setCooldownSongId] = useState<string | null>(null);
   const [requestFeedback, setRequestFeedback] = useState<{
     type: 'success' | 'error';
     message: string;
   } | null>(null);
+  const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (cooldownTimer.current) clearTimeout(cooldownTimer.current);
+    },
+    []
+  );
+
+  const startCooldown = (songId: string) => {
+    if (cooldownTimer.current) clearTimeout(cooldownTimer.current);
+    setCooldownSongId(songId);
+    cooldownTimer.current = setTimeout(() => {
+      setCooldownSongId(null);
+      cooldownTimer.current = null;
+    }, SUBMIT_COOLDOWN_MS);
+  };
 
   const handleRequest = async (songId: string) => {
     const song = results.find((item) => item.id === songId);
@@ -35,6 +55,7 @@ function App() {
       });
     } finally {
       setRequestingSongId(null);
+      startCooldown(songId);
     }
   };
 
@@ -112,9 +133,15 @@ function App() {
                 type="button"
                 className="request-button"
                 onClick={() => handleRequest(song.id)}
-                disabled={requestingSongId === song.id}
+                disabled={
+                  requestingSongId === song.id || cooldownSongId === song.id
+                }
               >
-                {requestingSongId === song.id ? 'Sending…' : `Request "${song.title}"`}
+                {requestingSongId === song.id
+                  ? 'Sending…'
+                  : cooldownSongId === song.id
+                    ? 'Just sent'
+                    : `Request "${song.title}"`}
               </button>
             </li>
           ))}

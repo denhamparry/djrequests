@@ -1,32 +1,19 @@
 import type { Handler } from '@netlify/functions';
 import { FORM_FIELD_IDS } from '../../shared/formFields';
 import { corsHeaders } from './_cors';
+import { checkRateLimit, resolveClientKey } from './_rateLimit';
+import { validateRequestBody } from './_validate';
 
-type SongPayload = {
-  id: string;
-  title: string;
-  artist: string;
-  album?: string | null;
-  artworkUrl?: string | null;
-  previewUrl?: string | null;
-};
-
-type RequesterPayload = {
-  name?: string;
-  dedication?: string;
-  contact?: string;
-};
-
-type RequestBody = {
-  song?: SongPayload;
-  requester?: RequesterPayload;
-};
-
-const jsonResponse = (statusCode: number, payload: Record<string, unknown>) => ({
+const jsonResponse = (
+  statusCode: number,
+  payload: Record<string, unknown>,
+  extraHeaders: Record<string, string> = {}
+) => ({
   statusCode,
   headers: {
     'content-type': 'application/json',
-    ...corsHeaders()
+    ...corsHeaders(),
+    ...extraHeaders
   },
   body: JSON.stringify(payload)
 });
@@ -87,17 +74,32 @@ export const handler: Handler = async (event) => {
     return jsonResponse(400, { error: 'Missing request body' });
   }
 
-  let payload: RequestBody;
+  const clientKey = resolveClientKey(
+    (event.headers ?? {}) as Record<string, string | undefined>
+  );
+  const limit = checkRateLimit(clientKey);
+  if (!limit.allowed) {
+    return jsonResponse(
+      429,
+      { error: 'Too many requests. Please wait a moment before trying again.' },
+      { 'retry-after': String(limit.retryAfterSeconds) }
+    );
+  }
+
+  let raw: unknown;
 
   try {
-    payload = JSON.parse(event.body);
+    raw = JSON.parse(event.body);
   } catch {
     return jsonResponse(400, { error: 'Invalid JSON payload' });
   }
 
-  if (!payload.song) {
-    return jsonResponse(400, { error: 'Song information is required' });
+  const validation = validateRequestBody(raw);
+  if (!validation.ok) {
+    return jsonResponse(400, { error: validation.error });
   }
+
+  const { song, requester } = validation.value;
 
   const formConfig = (() => {
     try {
@@ -112,15 +114,15 @@ export const handler: Handler = async (event) => {
   }
 
   const params = new URLSearchParams(formConfig.defaultParams);
-  appendField(params, FORM_FIELD_IDS.trackId, payload.song.id);
-  appendField(params, FORM_FIELD_IDS.trackName, payload.song.title);
-  appendField(params, FORM_FIELD_IDS.artistName, payload.song.artist);
-  appendField(params, FORM_FIELD_IDS.albumName, payload.song.album ?? '');
-  appendField(params, FORM_FIELD_IDS.artworkUrl, payload.song.artworkUrl ?? '');
-  appendField(params, FORM_FIELD_IDS.previewUrl, payload.song.previewUrl ?? '');
-  appendField(params, FORM_FIELD_IDS.requesterName, payload.requester?.name ?? '');
-  appendField(params, FORM_FIELD_IDS.dedication, payload.requester?.dedication ?? '');
-  appendField(params, FORM_FIELD_IDS.contact, payload.requester?.contact ?? '');
+  appendField(params, FORM_FIELD_IDS.trackId, song.id);
+  appendField(params, FORM_FIELD_IDS.trackName, song.title);
+  appendField(params, FORM_FIELD_IDS.artistName, song.artist);
+  appendField(params, FORM_FIELD_IDS.albumName, song.album);
+  appendField(params, FORM_FIELD_IDS.artworkUrl, song.artworkUrl);
+  appendField(params, FORM_FIELD_IDS.previewUrl, song.previewUrl);
+  appendField(params, FORM_FIELD_IDS.requesterName, requester.name);
+  appendField(params, FORM_FIELD_IDS.dedication, requester.dedication);
+  appendField(params, FORM_FIELD_IDS.contact, requester.contact);
   params.set('submit', 'Submit');
 
   let response: Response;
