@@ -1,0 +1,108 @@
+export type ValidatedSong = {
+  id: string;
+  title: string;
+  artist: string;
+  album: string | null;
+  artworkUrl: string | null;
+  previewUrl: string | null;
+};
+
+export type ValidatedRequester = {
+  name: string | null;
+  dedication: string | null;
+  contact: string | null;
+};
+
+export type ValidatedRequest = {
+  song: ValidatedSong;
+  requester: ValidatedRequester;
+};
+
+export type ValidationResult =
+  | { ok: true; value: ValidatedRequest }
+  | { ok: false; error: string };
+
+const MAX_STRING = 500;
+
+type StringOrError = string | { error: string };
+
+const requireString = (value: unknown, field: string): StringOrError => {
+  if (typeof value !== 'string') return { error: `${field} is required` };
+  const trimmed = value.trim();
+  if (!trimmed) return { error: `${field} is required` };
+  if (trimmed.length > MAX_STRING) return { error: `${field} is too long` };
+  return trimmed;
+};
+
+type OptionalStringOrError = string | null | { error: string };
+
+const optionalString = (value: unknown, field: string): OptionalStringOrError => {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string') return { error: `${field} must be a string` };
+  if (value.length > MAX_STRING) return { error: `${field} is too long` };
+  return value.trim() || null;
+};
+
+const isErrorResult = (value: unknown): value is { error: string } =>
+  typeof value === 'object' && value !== null && 'error' in value;
+
+export const validateRequestBody = (raw: unknown): ValidationResult => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return { ok: false, error: 'Request body must be an object' };
+  }
+
+  const body = raw as Record<string, unknown>;
+  const song = body.song;
+
+  if (!song || typeof song !== 'object' || Array.isArray(song)) {
+    return { ok: false, error: 'Song information is required' };
+  }
+
+  const requesterRaw = body.requester;
+  const requester =
+    requesterRaw && typeof requesterRaw === 'object' && !Array.isArray(requesterRaw)
+      ? (requesterRaw as Record<string, unknown>)
+      : {};
+
+  const songObj = song as Record<string, unknown>;
+
+  const id = requireString(songObj.id, 'song.id');
+  if (isErrorResult(id)) return { ok: false, error: id.error };
+  const title = requireString(songObj.title, 'song.title');
+  if (isErrorResult(title)) return { ok: false, error: title.error };
+  const artist = requireString(songObj.artist, 'song.artist');
+  if (isErrorResult(artist)) return { ok: false, error: artist.error };
+
+  const album = optionalString(songObj.album, 'song.album');
+  if (isErrorResult(album)) return { ok: false, error: album.error };
+  const artworkUrl = optionalString(songObj.artworkUrl, 'song.artworkUrl');
+  if (isErrorResult(artworkUrl)) return { ok: false, error: artworkUrl.error };
+  const previewUrl = optionalString(songObj.previewUrl, 'song.previewUrl');
+  if (isErrorResult(previewUrl)) return { ok: false, error: previewUrl.error };
+
+  const name = optionalString(requester.name, 'requester.name');
+  if (isErrorResult(name)) return { ok: false, error: name.error };
+  const dedication = optionalString(requester.dedication, 'requester.dedication');
+  if (isErrorResult(dedication)) return { ok: false, error: dedication.error };
+  const contact = optionalString(requester.contact, 'requester.contact');
+  if (isErrorResult(contact)) return { ok: false, error: contact.error };
+
+  return {
+    ok: true,
+    value: {
+      song: {
+        id,
+        title,
+        artist,
+        album,
+        artworkUrl,
+        previewUrl
+      },
+      requester: {
+        name,
+        dedication,
+        contact
+      }
+    }
+  };
+};

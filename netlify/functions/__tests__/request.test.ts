@@ -3,14 +3,23 @@ import type { Handler } from '@netlify/functions';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { handler as requestHandler } from '../request';
 import { FORM_FIELD_IDS } from '../../../shared/formFields';
+import { resetRateLimit } from '../_rateLimit';
 
 const handler = requestHandler as Handler;
+
+const makeEvent = (overrides: Record<string, unknown> = {}) =>
+  ({
+    httpMethod: 'POST',
+    headers: { 'x-forwarded-for': '1.1.1.1' },
+    ...overrides
+  }) as any;
 
 describe('request function', () => {
   const fetchMock = vi.fn();
   const originalEnv = process.env;
 
   beforeEach(() => {
+    resetRateLimit();
     vi.stubGlobal('fetch', fetchMock);
     process.env = {
       ...originalEnv,
@@ -33,7 +42,7 @@ describe('request function', () => {
 
   it('returns 400 when song payload is missing', async () => {
     const response = await handler(
-      { httpMethod: 'POST', body: JSON.stringify({}) } as any,
+      makeEvent({ body: JSON.stringify({}) }),
       {} as any
     );
 
@@ -41,12 +50,35 @@ describe('request function', () => {
     expect(JSON.parse(response.body).error).toMatch(/song information/i);
   });
 
+  it('returns 400 when song.id is missing', async () => {
+    const response = await handler(
+      makeEvent({
+        body: JSON.stringify({ song: { title: 'T', artist: 'A' } })
+      }),
+      {} as any
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.body).error).toBe('song.id is required');
+  });
+
+  it('returns 400 when song.artist is a number', async () => {
+    const response = await handler(
+      makeEvent({
+        body: JSON.stringify({ song: { id: '1', title: 'T', artist: 42 } })
+      }),
+      {} as any
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.body).error).toBe('song.artist is required');
+  });
+
   it('submits to the Google Form with normalized payload', async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200 });
 
     const response = await handler(
-      {
-        httpMethod: 'POST',
+      makeEvent({
         body: JSON.stringify({
           song: {
             id: '123',
@@ -62,7 +94,7 @@ describe('request function', () => {
             contact: 'instagram.com/avery'
           }
         })
-      } as any,
+      }),
       {} as any
     );
 
@@ -90,15 +122,31 @@ describe('request function', () => {
     expect(JSON.parse(response.body).message).toMatch(/submitted successfully/i);
   });
 
+  it('accepts a payload without a requester block', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200 });
+    const response = await handler(
+      makeEvent({
+        body: JSON.stringify({
+          song: { id: '1', title: 'T', artist: 'A' }
+        })
+      }),
+      {} as any
+    );
+
+    expect(response.statusCode).toBe(200);
+    const body = fetchMock.mock.calls[0][1]?.body as string;
+    const params = new URLSearchParams(body);
+    expect(params.get(FORM_FIELD_IDS.requesterName)).toBe('');
+  });
+
   it('uses ALLOWED_ORIGIN for CORS header on responses and OPTIONS', async () => {
     process.env.ALLOWED_ORIGIN = 'https://djrequests.example';
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200 });
 
     const postResponse = await handler(
-      {
-        httpMethod: 'POST',
+      makeEvent({
         body: JSON.stringify({ song: { id: '1', title: 't', artist: 'a' } })
-      } as any,
+      }),
       {} as any
     );
     expect(postResponse.headers?.['access-control-allow-origin']).toBe(
@@ -119,20 +167,59 @@ describe('request function', () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 500 });
 
     const response = await handler(
-      {
-        httpMethod: 'POST',
+      makeEvent({
         body: JSON.stringify({
-          song: {
-            id: '1',
-            title: 'Test',
-            artist: 'Artist'
-          }
+          song: { id: '1', title: 'Test', artist: 'Artist' }
         })
-      } as any,
+      }),
       {} as any
     );
 
     expect(response.statusCode).toBe(502);
     expect(JSON.parse(response.body).error).toMatch(/responded with status/i);
+  });
+
+  it('returns 429 with Retry-After after 5 rapid submissions from the same IP', async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200 });
+    const body = JSON.stringify({
+      song: { id: '1', title: 'T', artist: 'A' }
+    });
+
+    for (let i = 0; i < 5; i += 1) {
+      const ok = await handler(
+        makeEvent({ body, headers: { 'x-forwarded-for': '9.9.9.9' } }),
+        {} as any
+      );
+      expect(ok.statusCode).toBe(200);
+    }
+
+    const throttled = await handler(
+      makeEvent({ body, headers: { 'x-forwarded-for': '9.9.9.9' } }),
+      {} as any
+    );
+    expect(throttled.statusCode).toBe(429);
+    expect(throttled.headers?.['retry-after']).toBeDefined();
+    expect(Number(throttled.headers?.['retry-after'])).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shares the fallback "unknown" bucket when x-forwarded-for is missing', async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200 });
+    const body = JSON.stringify({
+      song: { id: '1', title: 'T', artist: 'A' }
+    });
+
+    for (let i = 0; i < 5; i += 1) {
+      const ok = await handler(
+        makeEvent({ body, headers: {} }),
+        {} as any
+      );
+      expect(ok.statusCode).toBe(200);
+    }
+
+    const throttled = await handler(
+      makeEvent({ body, headers: {} }),
+      {} as any
+    );
+    expect(throttled.statusCode).toBe(429);
   });
 });
