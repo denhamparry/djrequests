@@ -207,7 +207,9 @@ describe('request function', () => {
     expect(errorSpy.mock.calls[0][0]).toContain(
       '[request] Google Form configuration error'
     );
-    expect(errorSpy.mock.calls[0][0]).toContain(`(requestId=${body.requestId})`);
+    expect(errorSpy.mock.calls[0][0]).toContain(
+      `(requestId=${body.requestId} trackId=1)`
+    );
     expect(fetchMock).not.toHaveBeenCalled();
 
     errorSpy.mockRestore();
@@ -240,7 +242,7 @@ describe('request function', () => {
     expect(body.requestId).toMatch(/^[0-9a-f]{8}$/);
     expect(errorSpy).toHaveBeenCalledTimes(1);
     expect(errorSpy.mock.calls[0][0]).toBe(
-      `[request] Google Form network error (requestId=${body.requestId})`
+      `[request] Google Form network error (requestId=${body.requestId} trackId=1)`
     );
 
     errorSpy.mockRestore();
@@ -268,7 +270,7 @@ describe('request function', () => {
     expect(abortBody.requestId).toMatch(/^[0-9a-f]{8}$/);
     expect(errorSpy).toHaveBeenCalledTimes(1);
     expect(errorSpy.mock.calls[0][0]).toBe(
-      `[request] Google Form fetch aborted (requestId=${abortBody.requestId})`
+      `[request] Google Form fetch aborted (requestId=${abortBody.requestId} trackId=1)`
     );
 
     errorSpy.mockRestore();
@@ -294,8 +296,35 @@ describe('request function', () => {
     expect(invocationBody.requestId).toMatch(/^[0-9a-f]{8}$/);
     expect(errorSpy).toHaveBeenCalledTimes(1);
     expect(errorSpy.mock.calls[0][0]).toBe(
-      `[request] Google Form fetch invocation error (requestId=${invocationBody.requestId})`
+      `[request] Google Form fetch invocation error (requestId=${invocationBody.requestId} trackId=1)`
     );
+
+    errorSpy.mockRestore();
+  });
+
+  it('does not include requester PII in server-side error logs', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'));
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await handler(
+      makeEvent({
+        body: JSON.stringify({
+          song: { id: '99', title: 'T', artist: 'A' },
+          requester: {
+            name: 'Avery Secret',
+            contact: 'avery@private.test',
+            dedication: 'personal message'
+          }
+        })
+      }),
+      {} as any
+    );
+
+    const logLine = errorSpy.mock.calls[0][0] as string;
+    expect(logLine).toContain('trackId=99');
+    expect(logLine).not.toMatch(/Avery Secret/);
+    expect(logLine).not.toMatch(/avery@private.test/);
+    expect(logLine).not.toMatch(/personal message/);
 
     errorSpy.mockRestore();
   });
@@ -320,7 +349,7 @@ describe('request function', () => {
     expect(body.requestId).toMatch(/^[0-9a-f]{8}$/);
     expect(errorSpy).toHaveBeenCalledTimes(1);
     expect(errorSpy.mock.calls[0][0]).toBe(
-      `[request] Google Form responded with status 500 (requestId=${body.requestId})`
+      `[request] Google Form responded with status 500 (requestId=${body.requestId} trackId=1)`
     );
 
     errorSpy.mockRestore();
