@@ -1,7 +1,7 @@
 # GitHub Issue #88: refactor(ui): collapse preview playback state into a discriminated union
 
 **Issue:** [#88](https://github.com/denhamparry/djrequests/issues/88)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-17
 
 ## Problem Statement
@@ -352,3 +352,109 @@ loading-state case is a strict superset.
 3. **Chosen: single `useState<PlaybackState>` with functional updates
    inside audio listeners.** Minimal diff, closes the invariant hole,
    no reducer boilerplate. ✅
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-17
+**Original Plan Date:** 2026-04-17
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation
+
+### Strengths
+
+- Scope is correctly narrowed to `playingSongId` + `loadingSongId`,
+  matching the issue body. `erroredSongId` rationale for staying
+  separate is explicit and convincing (2s decay overlay, orthogonal
+  lifecycle).
+- Functional `setPlayback` inside `ensureAudio` listeners is flagged
+  and justified — the listeners are registered once so any direct
+  reference to `playback` would stale-capture.
+- All six transition sites in `src/App.tsx` are enumerated (state
+  decl, `resetPreviewState`, `ensureAudio` listeners, `togglePreview`,
+  loading-timeout, stale-results effect, `previewStateFor`).
+- Tests (`PreviewButton.test.tsx`, `SearchView.test.tsx`) go through
+  the DOM, not through internal state names — verified via grep. No
+  test modifications required.
+- `PreviewButton.tsx` correctly identified as unaffected.
+
+### Gaps Identified
+
+None blocking. One small observability note only:
+
+1. **`togglePreview` start-branch race with 'pause' event**
+   - **Impact:** Low — pre-existing condition, not introduced.
+   - **Detail:** When `togglePreview` switches from song A to song B,
+     it calls `audio.pause()` then sets new state. The 'pause' event
+     fires asynchronously. In current code the `pause` listener
+     unconditionally clears `loadingSongId`; the proposed new listener
+     does `prev.kind === 'loading' ? { kind: 'idle' } : prev`. If the
+     'pause' event arrives AFTER `setPlayback({ kind: 'loading',
+     songId: B })`, the new listener would wipe the just-set loading
+     state for B.
+   - **Recommendation:** Not a regression — old code had an analogous
+     race (would clear `loadingSongId` right after setting it) and the
+     loading timer + subsequent `'playing'` event already recover. But
+     implementer should be aware and verify the existing
+     `SearchView.test.tsx` "switch tracks mid-load" coverage still
+     passes. If a flake appears, resolve by reading `audio.paused`
+     inside the listener (`if (audio.paused && prev.kind ===
+     'loading') return { kind: 'idle' }`) — treat only "genuine pause"
+     events.
+
+### Edge Cases Not Covered
+
+1. **Unmount during loading** — covered by existing cleanup effect
+   (lines 122-135), which pauses audio and clears timers. `setPlayback`
+   on an unmounted component is a no-op. No change needed.
+2. **`audio.play()` rejection with AbortError** — handled in existing
+   catch; plan preserves. No change needed.
+
+### Review of Alternative Approaches
+
+1. **Fold `erroredSongId` into the union** — correctly rejected in
+   plan. ✅
+2. **`useReducer`** — correctly rejected as overkill. ✅
+
+### Risks and Concerns
+
+1. **Stale-results effect dependency on `playback` object identity**
+   - **Likelihood:** Low
+   - **Impact:** Low
+   - **Detail:** New effect deps `[results, playback]` — `playback`
+     identity changes on every transition. That's the intended
+     behaviour (effect re-checks on transitions) and matches React
+     conventions.
+   - **Mitigation:** None required.
+
+### Required Changes
+
+None. Plan may proceed as written.
+
+### Optional Improvements
+
+- [ ] Consider a tiny helper `isPlaybackFor(state, songId)` to avoid
+      repeating `kind === 'X' && songId === Y` in `previewStateFor`
+      and `togglePreview`. Pure cosmetic — skip if it adds noise.
+- [ ] If the implementer observes the "switch tracks mid-load" race
+      noted above causing test flakes, narrow the pause listener to
+      guard on `audio.paused`.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause (typed invariant hole)
+- [x] All acceptance criteria from issue #88 covered
+- [x] Implementation steps specific and actionable
+- [x] File paths and code references verified against repo
+- [x] Security implications: none (pure type refactor)
+- [x] Performance: no change (same number of renders)
+- [x] Test strategy: existing tests cover observable behaviour
+- [x] Documentation: plan itself is sufficient
+- [x] Related issues identified (#83, #86)
+- [x] Breaking changes: none (internal state refactor)
+
+**Status:** Reviewed (Approved)
