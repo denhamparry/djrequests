@@ -16,14 +16,17 @@ export function useRequesterName() {
   const persist = useCallback((value: string) => {
     const trimmed = value.trim();
     if (!trimmed || trimmed.length > MAX_NAME_LENGTH) return;
-    saveRequesterName(trimmed);
-    setPersistedName(trimmed);
+    if (saveRequesterName(trimmed)) {
+      setPersistedName(trimmed);
+    }
   }, []);
 
   const clear = useCallback(() => {
-    clearRequesterName();
-    setPersistedName(null);
+    const cleared = clearRequesterName();
     setName('');
+    if (cleared) {
+      setPersistedName(null);
+    }
   }, []);
 
   return { name, setName, persist, clear, persistedName };
