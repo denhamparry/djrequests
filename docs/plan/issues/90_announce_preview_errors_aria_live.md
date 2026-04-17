@@ -416,7 +416,7 @@ npm run test:unit
    - **Recommendation:** Accept as out of scope — `polite` is the W3C
      recommendation for status events.
 
-### Alternative Approaches Considered
+### Review of Alternative Approaches
 
 Already enumerated thoroughly in the plan's "Alternative Approaches
 Considered" section. No further alternatives surfaced during review.
