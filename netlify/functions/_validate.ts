@@ -1,4 +1,5 @@
-import type { Song } from '../../shared/types';
+import type { Song, RequestType } from '../../shared/types';
+import { REQUEST_TYPES } from '../../shared/types';
 
 type Brand<T, B extends string> = T & { readonly __brand: B };
 
@@ -7,7 +8,7 @@ export type ValidatedSong = Brand<Song, 'ValidatedSong'>;
 export type ValidatedRequester = Brand<
   {
     name: string;
-    dedication: string | null;
+    requestType: RequestType;
     contact: string | null;
   },
   'ValidatedRequester'
@@ -41,6 +42,22 @@ const optionalString = (value: unknown, field: string): OptionalStringOrError =>
   if (typeof value !== 'string') return { error: `${field} must be a string` };
   if (value.length > MAX_STRING) return { error: `${field} is too long` };
   return value.trim() || null;
+};
+
+type EnumOrError<T extends string> = T | { error: string };
+
+const enumField = <T extends string>(
+  value: unknown,
+  field: string,
+  allowed: readonly T[]
+): EnumOrError<T> => {
+  if (typeof value !== 'string' || !value) {
+    return { error: `${field} is required` };
+  }
+  if (!(allowed as readonly string[]).includes(value)) {
+    return { error: `${field} must be one of ${allowed.join(', ')}` };
+  }
+  return value as T;
 };
 
 const isErrorResult = (value: unknown): value is { error: string } =>
@@ -82,8 +99,12 @@ export const validateRequestBody = (raw: unknown): ValidationResult => {
 
   const name = requireString(requester.name, 'requester.name');
   if (isErrorResult(name)) return { ok: false, error: name.error };
-  const dedication = optionalString(requester.dedication, 'requester.dedication');
-  if (isErrorResult(dedication)) return { ok: false, error: dedication.error };
+  const requestType = enumField(
+    requester.requestType,
+    'requester.requestType',
+    REQUEST_TYPES
+  );
+  if (isErrorResult(requestType)) return { ok: false, error: requestType.error };
   const contact = optionalString(requester.contact, 'requester.contact');
   if (isErrorResult(contact)) return { ok: false, error: contact.error };
 
@@ -100,7 +121,7 @@ export const validateRequestBody = (raw: unknown): ValidationResult => {
       } as ValidatedSong,
       requester: {
         name,
-        dedication,
+        requestType,
         contact
       } as ValidatedRequester
     }

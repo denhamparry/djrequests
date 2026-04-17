@@ -11,8 +11,12 @@ export type Song = {
   previewUrl: string | null;
 };
 
+export type RequestType = 'song' | 'karaoke';
+
+export const REQUEST_TYPES: readonly RequestType[] = ['song', 'karaoke'] as const;
+
 export type Requester = {
   name: string;
-  dedication?: string;
+  requestType: RequestType;
   contact?: string;
 };

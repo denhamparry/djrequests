@@ -1,5 +1,6 @@
 import type { Handler } from '@netlify/functions';
 import { FORM_FIELD_IDS } from '../../shared/formFields';
+import type { RequestType } from '../../shared/types';
 import { corsHeaders } from './_cors';
 import { checkRateLimit, resolveClientKey } from './_rateLimit';
 import { validateRequestBody } from './_validate';
@@ -77,6 +78,14 @@ const classifyFetchError = (error: unknown): string => {
   return '[request] Google Form fetch invocation error';
 };
 
+// Display labels sent to the Google Form. MUST match the multiple-choice
+// option text on the Form exactly — Google Forms rejects submissions whose
+// value does not match an existing option, and the user sees a generic 502.
+const REQUEST_TYPE_LABEL: Record<RequestType, string> = {
+  song: 'Song',
+  karaoke: 'Karaoke'
+};
+
 const appendField = (params: URLSearchParams, fieldId: string, value?: string | null) => {
   if (!fieldId) {
     return;
@@ -152,7 +161,11 @@ export const handler: Handler = async (event) => {
   appendField(params, FORM_FIELD_IDS.artworkUrl, song.artworkUrl);
   appendField(params, FORM_FIELD_IDS.previewUrl, song.previewUrl);
   appendField(params, FORM_FIELD_IDS.requesterName, requester.name);
-  appendField(params, FORM_FIELD_IDS.dedication, requester.dedication);
+  appendField(
+    params,
+    FORM_FIELD_IDS.requestType,
+    REQUEST_TYPE_LABEL[requester.requestType]
+  );
   appendField(params, FORM_FIELD_IDS.contact, requester.contact);
   params.set('submit', 'Submit');
 

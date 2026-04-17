@@ -41,8 +41,12 @@ Web app that lets guests search for tracks, submit requests through a Google For
 - Create a new Google Form titled “Song Request” (or similar) within your Google Workspace.
 - Add visitor-facing fields:
   - Short answer: `Your Name` (optional)
-  - Short answer: `Dedication / Message` (optional)
+  - Multiple choice: `Request type` (required) — options: `Song`, `Karaoke`
   - Short answer: `Contact Method` (optional)
+
+  When updating an existing form, **edit the `Request type` question in
+  place** (do not delete/recreate). This preserves its `entry.<id>`, which
+  the web app already references in `shared/formFields.ts`.
 - Add metadata questions you’ll prefill from the site (short answer works best):
   - `Track ID`
   - `Track Name`

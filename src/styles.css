@@ -47,10 +47,45 @@ h1 {
   margin-bottom: 1rem;
 }
 
+fieldset.input-label {
+  border: none;
+  padding: 0;
+  margin-inline: 0;
+  margin-bottom: 1rem;
+}
+
 .label-text {
   display: block;
   font-weight: 600;
   margin-bottom: 0.5rem;
+}
+
+.request-type {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.request-type .label-text {
+  flex-basis: 100%;
+  padding: 0;
+}
+
+.radio-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.radio-option input[type='radio'] {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  backdrop-filter: none;
+  accent-color: #6c5ce7;
 }
 
 input {
