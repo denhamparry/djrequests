@@ -9,7 +9,7 @@
 - Chosen catalog API: **Apple iTunes Search API** (no auth, free, supports artist/track/album search and 30s preview URLs; rate limit ~20 requests/minute per IP).
 - Backup provider: **Deezer Search** for broader metadata if iTunes coverage proves insufficient; requires API key for production use.
 - Hosting target: **Netlify free tier** with automatic deploys from GitHub branch and environment variable support.
-- Google Form data points: requester name, song title, artist, optional message/dedication, contact method (optional), and hidden fields prefilled with trackId, artworkUrl100, collectionName.
+- Google Form data points: requester name, song title, artist, request type (Song/Karaoke), contact method (optional), and hidden fields prefilled with trackId, artworkUrl100, collectionName.
 - Apps Script workflow: on form submit, append to Google Doc queue with highlighted status placeholder (“Pending”, “Played”) and timestamp; manual moderation remains in Google Doc.
 
 ## Goals & Success Criteria
@@ -46,7 +46,7 @@
   - Capture audio preview support as an enhancement; design results cards with placeholder space for play controls on mobile.
 - **Google Workspace Automation**
   - Configure Google Form within the existing Workspace account with prefilled hidden fields (trackId, trackName, artistName, albumName, artworkUrl, previewUrl).
-  - Connect Form to Sheet capturing requester name, dedication, contact method, and system metadata.
+  - Connect Form to Sheet capturing requester name, request type (Song/Karaoke), contact method, and system metadata.
   - Write Apps Script (executing under the owner’s Workspace account) to sync Sheet entries into a readable Google Doc queue; include timestamp, status fields (“Pending”, “Played”), and optional follow-up column for manual notes.
   - Explore notifications (email or mobile push) for new requests.
 - **Infrastructure & Tooling**
