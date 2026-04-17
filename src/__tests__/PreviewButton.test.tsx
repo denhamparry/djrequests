@@ -268,4 +268,109 @@ describe('Preview button', () => {
       vi.useRealTimers();
     }
   });
+
+  it('pauses and resets when the playing track drops out of results', async () => {
+    const { user } = await renderWithTracks([
+      track({ id: '1', title: 'Song One' }),
+      track({ id: '2', title: 'Song Two', previewUrl: 'https://example.com/preview2.m4a' })
+    ]);
+
+    const btn1 = screen.getByRole('button', { name: /Preview Song One/i });
+    await user.click(btn1);
+    await vi.waitFor(() => expect(btn1).toHaveAttribute('aria-pressed', 'true'));
+
+    pauseSpy.mockClear();
+
+    // Swap search handler so the next debounced fetch returns only Song Two.
+    server.use(
+      http.get(searchEndpoint, () =>
+        HttpResponse.json({
+          tracks: [track({ id: '2', title: 'Song Two', previewUrl: 'https://example.com/preview2.m4a' })]
+        })
+      )
+    );
+
+    await user.type(screen.getByLabelText(/Search songs/i), ' more');
+
+    // Wait for Song One to disappear from the DOM — results-change effect fires.
+    await vi.waitFor(() => expect(screen.queryByText('Song One')).not.toBeInTheDocument());
+
+    expect(pauseSpy).toHaveBeenCalled();
+    expect(
+      screen.queryByRole('button', { name: /Preview Song Two/i, pressed: true })
+    ).not.toBeInTheDocument();
+  });
+
+  it('resets state when the audio element emits `ended`', async () => {
+    const { user } = await renderWithTracks([track()]);
+    const btn = screen.getByRole('button', { name: /Preview Song One by Artist A/i });
+
+    await user.click(btn);
+    await vi.waitFor(() => expect(btn).toHaveAttribute('aria-pressed', 'true'));
+
+    const audio = playSpy.mock.contexts[0] as HTMLMediaElement;
+    audio.dispatchEvent(new Event('ended'));
+
+    await vi.waitFor(() => expect(btn).toHaveAttribute('aria-pressed', 'false'));
+    expect(btn).toHaveAttribute('data-state', 'idle');
+  });
+
+  it('resets state when the audio element emits `error`', async () => {
+    const { user } = await renderWithTracks([track()]);
+    const btn = screen.getByRole('button', { name: /Preview Song One by Artist A/i });
+
+    await user.click(btn);
+    await vi.waitFor(() => expect(btn).toHaveAttribute('aria-pressed', 'true'));
+
+    const audio = playSpy.mock.contexts[0] as HTMLMediaElement;
+    audio.dispatchEvent(new Event('error'));
+
+    await vi.waitFor(() => expect(btn).toHaveAttribute('aria-pressed', 'false'));
+    expect(btn).toHaveAttribute('data-state', 'idle');
+  });
+
+  it('silently swallows AbortError from play() without warning', async () => {
+    playSpy.mockImplementation(function () {
+      const err = new Error('aborted');
+      err.name = 'AbortError';
+      return Promise.reject(err);
+    });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      const { user } = await renderWithTracks([track()]);
+      const btn = screen.getByRole('button', { name: /Preview Song One by Artist A/i });
+
+      await user.click(btn);
+      await vi.waitFor(() => expect(playSpy).toHaveBeenCalled());
+      // Flush microtasks so the rejected promise's .catch has run.
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it('resets state and warns when play() rejects with a generic error', async () => {
+    playSpy.mockImplementation(function () {
+      return Promise.reject(new Error('boom'));
+    });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      const { user } = await renderWithTracks([track()]);
+      const btn = screen.getByRole('button', { name: /Preview Song One by Artist A/i });
+
+      await user.click(btn);
+
+      await vi.waitFor(() => expect(btn).toHaveAttribute('aria-pressed', 'false'));
+      expect(btn).toHaveAttribute('data-state', 'idle');
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy.mock.calls[0].join(' ')).toContain('boom');
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
 });

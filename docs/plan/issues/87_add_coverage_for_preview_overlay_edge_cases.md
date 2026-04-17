@@ -1,7 +1,7 @@
 # GitHub Issue #87: test(ui): add coverage for preview overlay edge cases (results-change, ended, error)
 
 **Issue:** [#87](https://github.com/denhamparry/djrequests/issues/87)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-17
 
 ## Problem Statement
