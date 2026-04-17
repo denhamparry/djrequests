@@ -13,6 +13,7 @@
     "test:watch": "NODE_OPTIONS=--no-warnings=ExperimentalWarning vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "favicons:build": "bash scripts/build-favicons.sh",
     "prepare": "husky install"
   },
   "dependencies": {

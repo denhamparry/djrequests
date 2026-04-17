@@ -287,6 +287,19 @@ To request a code review from Claude on any PR:
 - Best practice: write logic in `format.ts` with Vitest tests, keep `index.ts` minimal
 - Test end-to-end by submitting a form and checking Google Doc output
 
+### Regenerating favicons
+
+After editing `public/favicon.svg`, regenerate all raster variants (the
+four PNGs and the multi-resolution `favicon.ico`) with:
+
+```bash
+npm run favicons:build
+```
+
+Requires ImageMagick v7 (`magick` on `PATH`). Install with
+`brew install imagemagick` on macOS. The script fails fast with a clear
+error if the binary is missing.
+
 ## Dependencies Notes
 
 ### Core
