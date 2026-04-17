@@ -1,7 +1,7 @@
 # GitHub Issue #108: fix(search) — don't return raw upstream error details to the client
 
 **Issue:** [#108](https://github.com/denhamparry/djrequests/issues/108)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Branch:** denhamparry.co.uk/fix/gh-issue-108
 **Date:** 2026-04-17
 
