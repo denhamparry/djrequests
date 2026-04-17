@@ -34,6 +34,14 @@ function App() {
   const trimmedName = requesterName.trim();
   const hasName = trimmedName.length > 0;
 
+  const erroredSong =
+    erroredSongId != null
+      ? (results.find((song) => song.id === erroredSongId) ?? null)
+      : null;
+  const previewErrorAnnouncement = erroredSong
+    ? `Preview for ${erroredSong.title} failed.`
+    : '';
+
   const clearLoadingTimer = () => {
     if (loadingTimer.current) {
       clearTimeout(loadingTimer.current);
@@ -275,6 +283,16 @@ function App() {
       {message && status !== 'loading' && (
         <p className="status message">{message}</p>
       )}
+
+      {/* Always-rendered live region: AT engines only announce updates to
+          regions that existed before the text changed. Keeping the <p> in
+          the tree (empty when idle) ensures the first preview-error
+          announcement is picked up. Transitioning through "" on retry is
+          intentional — it guarantees re-announcement when the same track
+          errors twice. */}
+      <p role="status" aria-live="polite" className="sr-only">
+        {previewErrorAnnouncement}
+      </p>
 
       {requestFeedback && (
         <p
