@@ -2,10 +2,9 @@ import { useCallback, useState } from 'react';
 import {
   clearRequesterName,
   loadRequesterName,
+  MAX_NAME_LENGTH,
   saveRequesterName
 } from '../lib/requesterStorage';
-
-const MAX_NAME_LENGTH = 200;
 
 export function useRequesterName() {
   const initial = () => loadRequesterName() ?? '';

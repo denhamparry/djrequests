@@ -10,16 +10,15 @@ export default defineConfig({
     environment: 'jsdom',
     environmentOptions: {
       jsdom: {
-        // jsdom 29 throws "SecurityError: localStorage is not available for
-        // opaque origins" without a real URL. Setting one keeps Web Storage
-        // (and any other origin-scoped APIs) functional in tests.
+        // A non-opaque origin is required for Web Storage APIs. Without
+        // `url`, jsdom throws "SecurityError: localStorage is not
+        // available for opaque origins" on access.
         url: 'http://localhost'
       }
     },
-    // Polyfill Web Storage — jsdom 29 + Node 22+ native Web Storage is
-    // broken without --localstorage-file. The setup file only runs when
-    // the environment is jsdom; Node-only tests (netlify, apps-script)
-    // that use `// @vitest-environment node` skip it.
+    // Install a Map-backed Storage shim for jsdom tests — see
+    // `src/test/jsdom-localstorage.ts` for the rationale. Node-only
+    // tests that opt in via `// @vitest-environment node` skip this.
     setupFiles: ['./src/test/jsdom-localstorage.ts'],
     globals: true,
     include: [
