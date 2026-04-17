@@ -141,7 +141,7 @@ describe('requesterStorage', () => {
       expect(loadRequesterName()).toBe('Bob');
     });
 
-    it('silently swallows setItem throwing (quota exceeded, etc.)', () => {
+    it('returns false when setItem throws (quota exceeded, etc.)', () => {
       const originalSetItem = window.localStorage.setItem.bind(
         window.localStorage
       );
@@ -149,10 +149,24 @@ describe('requesterStorage', () => {
         throw new Error('QuotaExceededError');
       };
       try {
-        expect(() => saveRequesterName('Avery')).not.toThrow();
+        let result: boolean | undefined;
+        expect(() => {
+          result = saveRequesterName('Avery');
+        }).not.toThrow();
+        expect(result).toBe(false);
       } finally {
         window.localStorage.setItem = originalSetItem;
       }
+    });
+
+    it('returns true after a successful write', () => {
+      expect(saveRequesterName('Avery')).toBe(true);
+    });
+
+    it('returns false for empty, whitespace-only, or over-cap input', () => {
+      expect(saveRequesterName('')).toBe(false);
+      expect(saveRequesterName('   ')).toBe(false);
+      expect(saveRequesterName('a'.repeat(201))).toBe(false);
     });
   });
 
@@ -166,6 +180,30 @@ describe('requesterStorage', () => {
 
     it('is a no-op when nothing is stored', () => {
       expect(() => clearRequesterName()).not.toThrow();
+    });
+
+    it('returns true after a successful removal', () => {
+      saveRequesterName('Avery');
+      expect(clearRequesterName()).toBe(true);
+    });
+
+    it('returns false when removeItem throws', () => {
+      saveRequesterName('Avery');
+      const originalRemoveItem = window.localStorage.removeItem.bind(
+        window.localStorage
+      );
+      window.localStorage.removeItem = () => {
+        throw new Error('SecurityError');
+      };
+      try {
+        let result: boolean | undefined;
+        expect(() => {
+          result = clearRequesterName();
+        }).not.toThrow();
+        expect(result).toBe(false);
+      } finally {
+        window.localStorage.removeItem = originalRemoveItem;
+      }
     });
   });
 
@@ -198,12 +236,22 @@ describe('requesterStorage', () => {
       expect(loadRequesterName()).toBeNull();
     });
 
-    it('saveRequesterName silently does nothing', () => {
-      expect(() => saveRequesterName('Avery')).not.toThrow();
+    it('saveRequesterName returns false when storage is unavailable', () => {
+      let result: boolean | undefined;
+      expect(() => {
+        result = saveRequesterName('Avery');
+      }).not.toThrow();
+      expect(result).toBe(false);
     });
 
-    it('clearRequesterName silently does nothing', () => {
-      expect(() => clearRequesterName()).not.toThrow();
+    it('clearRequesterName returns true when storage is unavailable', () => {
+      // No storage available means nothing was ever persisted via this
+      // module, so the caller's post-condition is trivially satisfied.
+      let result: boolean | undefined;
+      expect(() => {
+        result = clearRequesterName();
+      }).not.toThrow();
+      expect(result).toBe(true);
     });
   });
 });

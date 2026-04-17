@@ -46,26 +46,32 @@ export function loadRequesterName(): string | null {
   }
 }
 
-export function saveRequesterName(name: string): void {
+export function saveRequesterName(name: string): boolean {
   const trimmed = name.trim();
-  if (!trimmed || trimmed.length > MAX_NAME_LENGTH) return;
+  if (!trimmed || trimmed.length > MAX_NAME_LENGTH) return false;
   const storage = safeStorage();
-  if (!storage) return;
+  if (!storage) return false;
   try {
     const payload: StoredRequester = { name: trimmed, savedAt: Date.now() };
     storage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    return true;
   } catch {
-    /* quota exceeded or similar — silent fallback */
+    /* quota exceeded or similar — nothing was written */
+    return false;
   }
 }
 
-export function clearRequesterName(): void {
+export function clearRequesterName(): boolean {
   const storage = safeStorage();
-  if (!storage) return;
+  // No storage available → nothing was ever persisted via this module,
+  // so the caller's post-condition ("nothing is persisted") already holds.
+  if (!storage) return true;
   try {
     storage.removeItem(STORAGE_KEY);
+    return true;
   } catch {
-    /* silent fallback */
+    /* removeItem threw — stored value may still be present */
+    return false;
   }
 }
 

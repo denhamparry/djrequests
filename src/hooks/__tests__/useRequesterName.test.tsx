@@ -72,4 +72,43 @@ describe('useRequesterName', () => {
     expect(result.current.persistedName).toBeNull();
     expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
+
+  it('persist does not update persistedName when setItem throws', () => {
+    const { result } = renderHook(() => useRequesterName());
+    const originalSetItem = window.localStorage.setItem.bind(
+      window.localStorage
+    );
+    window.localStorage.setItem = () => {
+      throw new Error('QuotaExceededError');
+    };
+    try {
+      act(() => result.current.persist('Avery'));
+      expect(result.current.persistedName).toBeNull();
+    } finally {
+      window.localStorage.setItem = originalSetItem;
+    }
+  });
+
+  it('clear empties name but keeps persistedName when removeItem throws', () => {
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ name: 'Avery', savedAt: Date.now() })
+    );
+    const { result } = renderHook(() => useRequesterName());
+    expect(result.current.persistedName).toBe('Avery');
+
+    const originalRemoveItem = window.localStorage.removeItem.bind(
+      window.localStorage
+    );
+    window.localStorage.removeItem = () => {
+      throw new Error('SecurityError');
+    };
+    try {
+      act(() => result.current.clear());
+      expect(result.current.name).toBe('');
+      expect(result.current.persistedName).toBe('Avery');
+    } finally {
+      window.localStorage.removeItem = originalRemoveItem;
+    }
+  });
 });
