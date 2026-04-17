@@ -1,7 +1,7 @@
 # GitHub Issue #98: Improve favicon design for better rendering at small sizes
 
 **Issue:** [#98](https://github.com/denhamparry/djrequests/issues/98)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-17
 **Labels:** enhancement
 
@@ -541,17 +541,19 @@ to pass unchanged.
 Changes that must be applied during implementation (do **not** require plan
 revision — they are implementation-time refinements captured in this review):
 
-- [ ] **Invert the default fill in `favicon.svg`** — default `.glyph` fill
+- [x] **Invert the default fill in `favicon.svg`** — default `.glyph` fill
       must be `#ffffff`, with `@media (prefers-color-scheme: light)`
       overriding to `#1a1a1a`. This makes the ImageMagick rasterisation
       produce a visible white glyph on the dark tile, while browsers still
       get light/dark adaptation. (Addresses Gap #1.)
-- [ ] **Keep the silhouette inside ≤ 80% of the viewBox** so the maskable
+- [x] **Keep the silhouette inside ≤ 80% of the viewBox** so the maskable
       PNG variants survive the launcher's circular crop. (Addresses Edge
       Case #2.)
-- [ ] **Sanity-check the `.ico`** after generation to confirm it contains
+- [x] **Sanity-check the `.ico`** after generation to confirm it contains
       three tiles (16/32/48). (Already in the plan's Test Case 2; just
-      reinforcing.)
+      reinforcing.) Verified via `magick identify public/favicon.ico`,
+      which reports three frames at 16/32/48. Note: plain `file(1)` may
+      under-report frame count on some versions; trust `magick identify`.
 
 ### Optional Improvements
 
