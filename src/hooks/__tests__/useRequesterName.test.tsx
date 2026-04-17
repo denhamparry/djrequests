@@ -25,7 +25,7 @@ describe('useRequesterName', () => {
   it('initialises from stored value when present', () => {
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ name: 'Avery' })
+      JSON.stringify({ name: 'Avery', savedAt: Date.now() })
     );
     const { result } = renderHook(() => useRequesterName());
     expect(result.current.name).toBe('Avery');
@@ -63,7 +63,7 @@ describe('useRequesterName', () => {
   it('clear empties state and removes the stored value', () => {
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ name: 'Avery' })
+      JSON.stringify({ name: 'Avery', savedAt: Date.now() })
     );
     const { result } = renderHook(() => useRequesterName());
     expect(result.current.name).toBe('Avery');

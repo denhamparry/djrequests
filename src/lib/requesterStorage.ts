@@ -1,7 +1,8 @@
 const STORAGE_KEY = 'djrequests:requester';
 export const MAX_NAME_LENGTH = 200;
+export const TTL_MS = 12 * 60 * 60 * 1000;
 
-type StoredRequester = { name: string };
+type StoredRequester = { name: string; savedAt: number };
 
 let probedStorage: Storage | null | undefined;
 
@@ -30,6 +31,15 @@ export function loadRequesterName(): string | null {
     if (parsed.name.length === 0 || parsed.name.length > MAX_NAME_LENGTH) {
       return null;
     }
+    if (!Number.isFinite(parsed.savedAt)) return null;
+    if (Date.now() - (parsed.savedAt as number) > TTL_MS) {
+      try {
+        storage.removeItem(STORAGE_KEY);
+      } catch {
+        /* silent */
+      }
+      return null;
+    }
     return parsed.name;
   } catch {
     return null;
@@ -42,7 +52,7 @@ export function saveRequesterName(name: string): void {
   const storage = safeStorage();
   if (!storage) return;
   try {
-    const payload: StoredRequester = { name: trimmed };
+    const payload: StoredRequester = { name: trimmed, savedAt: Date.now() };
     storage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch {
     /* quota exceeded or similar — silent fallback */
