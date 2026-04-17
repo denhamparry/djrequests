@@ -1,7 +1,7 @@
 # GitHub Issue #110: feat: persist requester name in browser localStorage
 
 **Issue:** [#110](https://github.com/denhamparry/djrequests/issues/110)
-**Status:** Planning
+**Status:** Reviewed (Approved with Required Changes)
 **Date:** 2026-04-17
 
 ## Problem Statement
@@ -465,3 +465,174 @@ real reload.
 - Lazy `useState` initialiser keeps the storage read off the render path.
 - All `try`/`catch` blocks degrade silently — `localStorage` is a
   best-effort convenience layer, never load-bearing.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-17
+**Original Plan Date:** 2026-04-17
+
+### Review Summary
+
+- **Overall Assessment:** Approved (with Required Changes)
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation after addressing the Required
+  Changes below — they are tactical, not architectural.
+
+### Strengths
+
+- **Correct architectural split** (helper in `src/lib/`, hook in `src/hooks/`)
+  matches the codebase's existing pattern.
+- **Save-on-success vs save-on-keystroke** is the right default — explicitly
+  justified in the plan, with the privacy reasoning preserved.
+- **Probe-write inside `safeStorage()`** is a thoughtful detail that prevents
+  deferred throws from Safari-private-mode-style storage.
+- **Lazy `useState` initialiser** keeps the `localStorage` read off the render
+  path — small but correct.
+- **Acceptance-criteria coverage** is complete: pre-fill, persist, clear, and
+  graceful-fallback are all addressed.
+- **JSON-shaped payload** with `{ name: string }` is forward-compatible
+  without requiring a key migration if more fields are added later.
+- **The plan correctly notes** that the issue says "request modal" but the
+  current UI has no modal — this prevents the implementer from inventing one.
+
+### Gaps Identified
+
+1. **Test isolation in `SearchView.test.tsx` is unaccounted for.**
+   - **Impact:** **High** — will break the existing test suite.
+   - **Detail:** The existing `renderAndRequest` helper at
+     `src/__tests__/SearchView.test.tsx:32-53` calls
+     `user.type(screen.getByLabelText(/Your name/i), name)` (default
+     `name = 'Avery'`). Multiple tests in the file go through this helper.
+     Once `handleRequest` persists the name on success, the **next test in
+     the same file** will render with the pre-filled value, and
+     `user.type` will append `'Avery'` to the existing `'Avery'`, producing
+     `'AveryAvery'`. Several tests assert `body.requester.name === 'Avery'`
+     and will fail.
+   - **Recommendation:** The plan must explicitly require a top-level
+     `beforeEach(() => window.localStorage.clear())` in
+     `src/__tests__/SearchView.test.tsx` (and any other test file that
+     renders `<App />`). Add this as a step in the implementation plan,
+     not just in the unit-test guidance for the new helper.
+
+2. **CSS filename is incorrect.**
+   - **Impact:** Low (cosmetic) but it's a hard-coded reference.
+   - **Detail:** The plan says
+     `(Optional) src/index.css — small .link-button style if not already
+     present`. The actual stylesheet is `src/styles.css` (verified). There
+     is no `src/index.css`.
+   - **Recommendation:** Update the "Files Modified" entry and any
+     references in the plan to `src/styles.css`.
+
+3. **Coverage threshold framing is over-strong.**
+   - **Impact:** Low.
+   - **Detail:** The plan says new files must "pass the >80% threshold" of
+     `npm run test:unit`. `vite.config.ts` does not configure any
+     `coverage.thresholds` — the 80% target is aspirational (from
+     `CLAUDE.md`), not enforced by the test runner. Tests will not fail at
+     <80%.
+   - **Recommendation:** Soften to "aim for >80% coverage on new files"
+     rather than treating it as a gating check.
+
+### Edge Cases Not Covered
+
+1. **Probe-write key visibility in tests.**
+   - **Current Plan:** `safeStorage()` writes `__djrequests_probe__` on
+     every call, then removes it.
+   - **Impact:** Tests asserting on `localStorage.length` would observe a
+     transient extra key. Unlikely to be a real problem given the planned
+     test surface, but worth a note.
+   - **Recommendation:** Either (a) memoise the probe result (`let
+     storageOk: boolean | null = null;` cached after the first probe), or
+     (b) explicitly note in the helper's comments that the probe is fast
+     and idempotent. Option (a) is also a tiny perf win since
+     load/save/clear all probe today.
+
+2. **Stored value longer than is reasonable / control characters.**
+   - **Current Plan:** No length cap; trust whatever was previously stored.
+   - **Impact:** Low — `<input>` has no `maxLength` today either, so this
+     is no regression. But a malicious or bored user could stuff a 5MB
+     name in via DevTools and the app would happily render it.
+   - **Recommendation:** Optional: cap loaded names at e.g. 200 chars in
+     `loadRequesterName` (`if (parsed.name.length > 200) return null`).
+     Defensive, not strictly required.
+
+3. **Playwright second test must explicitly clear storage at start.**
+   - **Current Plan:** "Submits a request, reloads the page, asserts
+     pre-fill, clears."
+   - **Detail:** Playwright contexts default to fresh storage per test in
+     this project's config (no `storageState` reuse), so this is likely
+     already correct, but the test should guard against the assumption
+     by either using a fresh `context` or `page.evaluate(() =>
+     localStorage.clear())` in a `beforeEach`.
+   - **Recommendation:** Add a one-liner `beforeEach` to the new e2e test
+     to make storage state explicit.
+
+### Alternatives Considered During Review
+
+1. **Vitest global setup file with `localStorage.clear()`.**
+   - **Pros:** One place to handle isolation across all current and
+     future App-level tests.
+   - **Cons:** Requires adding `setupFiles` to `vite.config.ts` (currently
+     none) — slightly broader scope than this issue.
+   - **Verdict:** Worth doing as an Optional Improvement; per-file
+     `beforeEach` is acceptable for the MVP.
+
+2. **`useSyncExternalStore` instead of `useState`.**
+   - **Pros:** Reactive across tabs (storage events).
+   - **Cons:** Cross-tab sync is explicitly out of scope per the plan and
+     the issue. Adds complexity for negligible benefit at events.
+   - **Verdict:** Plan's choice is correct.
+
+### Risks and Concerns
+
+1. **Test-suite breakage on first commit if Required Change #1 is missed.**
+   - **Likelihood:** High (without the fix).
+   - **Impact:** High (CI red, blocks PR).
+   - **Mitigation:** Add the `beforeEach` clear as a numbered
+     implementation step, not just a passing mention.
+
+2. **Persisted name leaks across browser profiles is impossible (good)**;
+   persisted name leaks across **users on a shared device** is the
+   intended use-case the "Not you? Clear" button addresses.
+   - **Mitigation in plan:** Already addressed.
+
+3. **No risk of token / secret exposure** — only a free-text name is stored.
+   No XSS surface beyond what the app already has (React escapes by default).
+
+### Required Changes
+
+- [ ] **Add step:** Top-level `beforeEach(() => window.localStorage.clear())`
+      in `src/__tests__/SearchView.test.tsx`. List this as an explicit
+      implementation step, not just a comment in the test guidance.
+- [ ] **Fix filename:** Change `src/index.css` → `src/styles.css` in both
+      "Implementation Plan → Step 3" and "Files Modified".
+- [ ] **Soften coverage claim:** Replace "must pass the >80% threshold"
+      with "aim for >80% coverage" since no threshold is enforced in
+      `vite.config.ts`.
+
+### Optional Improvements
+
+- [ ] **Memoise the storage probe** in `safeStorage()` so it runs once per
+      session instead of on every read/write/clear.
+- [ ] **Cap loaded name length** at ~200 chars in `loadRequesterName()` as
+      a defensive measure against tampered storage.
+- [ ] **Add `beforeEach` to the new Playwright test** to explicitly clear
+      `localStorage` and document the expectation.
+- [ ] **Consider a vitest global setup file** (`src/test/setup.ts` wired
+      via `vite.config.ts → test.setupFiles`) to centralise
+      `localStorage.clear()` and any future cross-test cleanup.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate (after Required Change #2)
+- [x] Security implications considered (PII scope, shared-device clear)
+- [x] Performance impact assessed (lazy init, no render-path I/O)
+- [x] Test strategy covers critical paths and edge cases (after Required
+      Change #1)
+- [x] Documentation updates planned (none needed beyond plan itself)
+- [x] Related issues/dependencies identified (#035)
+- [x] Breaking changes documented (none — purely additive)
