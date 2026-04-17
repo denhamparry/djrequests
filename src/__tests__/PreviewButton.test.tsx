@@ -348,6 +348,10 @@ describe('Preview button', () => {
       await Promise.resolve();
 
       expect(warnSpy).not.toHaveBeenCalled();
+      // AbortError branch must not call resetPreviewState, so pause() is
+      // never invoked by the catch handler. (The initial togglePreview
+      // call pauses once before setting src; assert exactly that baseline.)
+      expect(pauseSpy).toHaveBeenCalledTimes(1);
     } finally {
       warnSpy.mockRestore();
     }
