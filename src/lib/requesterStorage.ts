@@ -1,5 +1,5 @@
 const STORAGE_KEY = 'djrequests:requester';
-const MAX_NAME_LENGTH = 200;
+export const MAX_NAME_LENGTH = 200;
 
 type StoredRequester = { name: string };
 
