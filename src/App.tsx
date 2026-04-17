@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSongSearch } from './hooks/useSongSearch';
+import { useRequesterName } from './hooks/useRequesterName';
 import { RequestError, submitSongRequest } from './lib/googleForm';
 import PreviewButton, { type PreviewState } from './components/PreviewButton';
 import type { Song, RequestType } from '../shared/types';
@@ -16,8 +17,15 @@ type PlaybackState =
 
 function App() {
   const { query, setQuery, results, status, message, error } = useSongSearch();
-  const [requesterName, setRequesterName] = useState('');
+  const {
+    name: requesterName,
+    setName: setRequesterName,
+    persist: persistRequesterName,
+    clear: clearRequesterName,
+    persistedName
+  } = useRequesterName();
   const [requestType, setRequestType] = useState<RequestType>('song');
+  const requesterInputRef = useRef<HTMLInputElement | null>(null);
   const [requestingSongId, setRequestingSongId] = useState<string | null>(null);
   const [cooldownSongId, setCooldownSongId] = useState<string | null>(null);
   const [requestFeedback, setRequestFeedback] = useState<{
@@ -197,6 +205,7 @@ function App() {
         type: 'success',
         message: `Request for "${song.title}" sent to the DJ queue.`
       });
+      persistRequesterName(trimmedName);
     } catch (submissionError) {
       const baseMessage =
         submissionError instanceof Error ? submissionError.message : 'Request failed.';
@@ -233,6 +242,7 @@ function App() {
         <span className="label-text">Your name</span>
         <input
           id="requester-name"
+          ref={requesterInputRef}
           aria-label="Your name"
           placeholder="So the DJ knows who requested it"
           value={requesterName}
@@ -240,6 +250,18 @@ function App() {
           required
           onChange={(event) => setRequesterName(event.target.value)}
         />
+        {persistedName !== null && persistedName === requesterName && (
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => {
+              clearRequesterName();
+              requesterInputRef.current?.focus();
+            }}
+          >
+            Not you? Clear
+          </button>
+        )}
       </label>
 
       <fieldset className="input-label request-type">
