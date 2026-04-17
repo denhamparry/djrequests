@@ -1,7 +1,7 @@
 # GitHub Issue #100: colocate REQUEST_TYPE_LABEL with REQUEST_TYPES in shared/types
 
 **Issue:** [#100](https://github.com/denhamparry/djrequests/issues/100)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-17
 
 ## Problem Statement
@@ -258,7 +258,7 @@ None material. The refactor is a pure move with no behavioural change;
 existing `request.test.ts` coverage (which asserts the POST body)
 already guards against accidental regressions.
 
-### Alternative Approaches Considered
+### Alternative Approaches (Review)
 
 1. **Expand `vite.config.ts` to include `shared/**/*.test.ts`** and
    colocate the test in `shared/__tests__/`.
@@ -286,7 +286,7 @@ already guards against accidental regressions.
 
 ### Required Changes
 
-- [ ] Treat `netlify/functions/__tests__/requestTypeLabels.test.ts` as
+- [x] Treat `netlify/functions/__tests__/requestTypeLabels.test.ts` as
       the *only* test location for Step 3. Remove the
       `shared/__tests__/types.test.ts` option from the plan.
 
