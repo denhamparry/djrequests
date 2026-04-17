@@ -1,7 +1,7 @@
 # GitHub Issue #98: Improve favicon design for better rendering at small sizes
 
 **Issue:** [#98](https://github.com/denhamparry/djrequests/issues/98)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-17
 **Labels:** enhancement
 
@@ -373,3 +373,210 @@ to pass unchanged.
   cost.
 - Re-run the ImageMagick regeneration commands as a single shell block
   when updating the SVG so raster variants never drift from source.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-17
+**Original Plan Date:** 2026-04-17
+
+### Review Summary
+
+- **Overall Assessment:** Approved (with Required Changes to address during
+  implementation, no plan revision blocking)
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation, applying the required
+  changes below during Step 2.
+
+### Strengths
+
+- Root cause correctly identified and verified: `public/favicon.svg` is an
+  87KB `<svg>` wrapper around a base64 raster, not a vector. Fixing this is
+  the single highest-impact change for the acceptance criteria.
+- Tooling check is accurate: `magick` 7.1.2 is on PATH in this environment,
+  so the plan's raster-regeneration step is executable without new
+  dependencies.
+- Continuity with prior branding (issue #11 / Rhiwbina Squirrels) is
+  deliberately preserved, and alternatives are explicitly listed and
+  rejected with rationale.
+- `index.html` and `site.webmanifest` are correctly identified as already
+  wired — no HTML changes needed, which keeps the diff focused.
+- Testing strategy is appropriate: no unit tests added (no runtime logic),
+  but concrete file-level assertions (`file favicon.ico`, `magick
+  identify`) are specified.
+- Acceptance criteria from issue #98 are mapped 1:1 to the plan's success
+  criteria.
+
+### Gaps Identified
+
+1. **Gap: CSS `prefers-color-scheme` approach as written produces an invisible
+   raster glyph.**
+
+   - **Impact:** High — would break the rasterised variants (ICO, 96px, 180px,
+     192px, 512px).
+   - **Evidence:** Verified with a probe SVG during review:
+
+     ```text
+     <style>
+       .g { fill: #1a1a1a; }
+       @media (prefers-color-scheme: dark) { .g { fill: #ffffff; } }
+     </style>
+     ```
+
+     When rasterised with `magick ... -background '#1a1a1a' ... probe.svg`,
+     the resulting PNG's centre pixel is `graya(26,1)` — i.e. the default
+     (`#1a1a1a`) fill is applied. ImageMagick ignores `@media
+     (prefers-color-scheme: ...)` because there is no "user preference"
+     during rasterisation; only the default CSS rule applies. On a
+     `#1a1a1a` tile, that means the glyph would be the same colour as the
+     background — invisible.
+
+   - **Recommendation:** Use **two SVG sources** or a **single SVG whose
+     default fill is white**:
+
+     - **Option A (recommended):** Author `public/favicon.svg` with the
+       *default* `.glyph` fill set to `#ffffff`, and the `prefers-color-scheme:
+       light` media query overriding it to `#1a1a1a` for light tab chrome.
+       ImageMagick then rasterises the white-glyph default onto the dark
+       tile — which is exactly what we want for all raster variants. In the
+       browser, the SVG still adapts via the media query.
+     - **Option B:** Keep one "browser" SVG (`public/favicon.svg`) as
+       currently planned, and author a second *non-shipped* SVG under
+       `scripts/` or `build/` with a hard-coded white glyph purely as the
+       raster source. More files, but clean separation.
+
+   Option A is simpler and keeps the pipeline single-source. Use it.
+
+2. **Gap: No concrete silhouette path provided; "simplify the squirrel" is
+   under-specified.**
+
+   - **Impact:** Medium — implementation outcome depends on subjective
+     design judgement not captured in the plan.
+   - **Recommendation:** During implementation, commit a *specific*
+     silhouette and document it in the PR description. Acceptable simpler
+     motifs if the squirrel proves too detailed at 16px: a chunky
+     turntable-arm-on-disc glyph or a bold musical-note. The plan
+     pre-authorises falling back to one of these if the squirrel
+     silhouette cannot be made legible at 16×16 — this is an
+     implementation-time judgement, not a plan revision.
+
+### Edge Cases Not Covered
+
+1. **Edge case: Browsers that prefer the `favicon.ico` over the SVG.**
+
+   - **Current plan:** Regenerates ICO from the same source, so it will be
+     consistent — but only if Gap #1 is addressed.
+   - **Recommendation:** After implementation, spot-check Safari Technology
+     Preview and older Firefox, which historically preferred `.ico`. If the
+     ICO looks wrong while the SVG looks right, that points back to Gap #1.
+
+2. **Edge case: Maskable PNG safe-zone.**
+
+   - **Current plan:** The 192/512 PNGs are marked `"purpose": "maskable"`
+     in `site.webmanifest`. Maskable icons must keep their glyph inside the
+     central ~80% circle, or the launcher will crop it.
+   - **Recommendation:** When rasterising the 192 and 512 variants, add
+     explicit padding so the silhouette occupies ≤ 80% of the tile width
+     (e.g. author the SVG with the glyph inside an inner 26/32 square on
+     the 32-viewBox, or resize to 80% and composite onto the coloured
+     background).
+
+3. **Edge case: Transparent-background SVG on browsers that composite
+   differently (Safari on iOS pinned tabs).**
+
+   - **Current plan:** Background is transparent.
+   - **Recommendation:** This is the correct choice for `<link rel="icon"
+     type="image/svg+xml">` — browsers expect transparency and colour the
+     tile themselves. No change needed, just calling it out.
+
+### Alternative Approaches Reconsidered During Review
+
+1. **Alternative: Use `realfavicongenerator.net` for the whole asset set.**
+
+   - **Pros:** One-stop tool, handles maskable safe-zones and edge cases
+     (Safari pinned tab, Windows tile) automatically.
+   - **Cons:** Out-of-repo manual step; not reproducible on another machine
+     or in CI; future iterations require re-uploading.
+   - **Verdict:** The plan's local-ImageMagick approach is better for
+     reproducibility. Keep the plan's choice.
+
+2. **Alternative: Keep the SVG as-is and only tune raster exports at higher
+   quality / better downscaling filters.**
+
+   - **Pros:** Minimal change.
+   - **Cons:** Does not address root cause — detail density is the problem,
+     not resolution. A 512px PNG down-sampled to 16px will still look like
+     mush.
+   - **Verdict:** Correctly rejected in the plan.
+
+### Risks and Concerns
+
+1. **Risk: Silhouette design is subjective; review iteration may be needed.**
+
+   - **Likelihood:** Medium
+   - **Impact:** Low (aesthetic, not functional)
+   - **Mitigation:** Commit an initial silhouette; if it fails acceptance
+     review (the "Verified in Chrome/Safari/Firefox" criterion), iterate in
+     the same PR rather than expanding scope.
+
+2. **Risk: Manual cross-browser verification can't be automated.**
+
+   - **Likelihood:** High (it's genuinely manual)
+   - **Impact:** Medium
+   - **Mitigation:** Record the verification results as PR comments with
+     screenshots; this is how the acceptance criteria in the issue are
+     signed off.
+
+3. **Risk: `magick` SVG rendering relies on librsvg/MSVG; differences between
+   machines could produce different rasters.**
+
+   - **Likelihood:** Low
+   - **Impact:** Medium
+   - **Mitigation:** The commit fixes the raster outputs in the repo, so
+     CI/production sees the committed PNGs regardless of the build
+     machine. Re-rasterisation is only re-run when the SVG changes.
+
+### Required Changes
+
+Changes that must be applied during implementation (do **not** require plan
+revision — they are implementation-time refinements captured in this review):
+
+- [ ] **Invert the default fill in `favicon.svg`** — default `.glyph` fill
+      must be `#ffffff`, with `@media (prefers-color-scheme: light)`
+      overriding to `#1a1a1a`. This makes the ImageMagick rasterisation
+      produce a visible white glyph on the dark tile, while browsers still
+      get light/dark adaptation. (Addresses Gap #1.)
+- [ ] **Keep the silhouette inside ≤ 80% of the viewBox** so the maskable
+      PNG variants survive the launcher's circular crop. (Addresses Edge
+      Case #2.)
+- [ ] **Sanity-check the `.ico`** after generation to confirm it contains
+      three tiles (16/32/48). (Already in the plan's Test Case 2; just
+      reinforcing.)
+
+### Optional Improvements
+
+- [ ] Add an `npm run` script (e.g. `favicons:build`) wrapping the
+      ImageMagick pipeline, so future regenerations are one command. Out
+      of scope for this issue, but useful follow-up.
+- [ ] Store the source SVG under `src/assets/` with a build step copying to
+      `public/`, so the "single source of truth" claim is enforced by
+      tooling rather than convention. Out of scope here.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue #98 are covered
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate (verified by `ls public/`)
+- [x] Security implications considered (static assets only, no user input —
+      no concerns)
+- [x] Performance impact assessed (SVG shrinks from 87KB → <5KB; raster
+      tiles stay similar size; net positive)
+- [x] Test strategy covers critical paths (file-level assertions for
+      vector-ness, dimensions, ICO multi-res)
+- [x] Documentation updates planned (plan document itself; no user-facing
+      docs needed)
+- [x] Related issues/dependencies identified (links to #11)
+- [x] Breaking changes documented (none — same filenames, same wiring)
+- [x] Platform compatibility (ImageMagick confirmed available on target
+      dev machine)
