@@ -94,3 +94,67 @@ test('smoke: user can search and prepare a song request', async ({ page }) => {
     page.getByText('Request for "Digital Love" sent to the DJ queue.')
   ).toBeVisible();
 });
+
+test('persists the requester name across reloads and supports clear', async ({
+  page
+}) => {
+  await page.route('**/.netlify/functions/search**', async (route, request) => {
+    const url = new URL(request.url());
+    if (url.searchParams.get('term') !== 'digital love') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ tracks: [], message: 'No songs found.' })
+      });
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        tracks: [
+          {
+            id: '321',
+            title: 'Digital Love',
+            artist: 'Daft Punk',
+            album: 'Discovery',
+            artworkUrl: 'https://example.com/discovery.jpg',
+            previewUrl: null
+          }
+        ]
+      })
+    });
+  });
+
+  await page.route('**/.netlify/functions/request**', async (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ message: 'Song request submitted successfully.' })
+    })
+  );
+
+  await page.goto('/');
+  await page.evaluate(() => window.localStorage.clear());
+  await page.reload();
+
+  const nameInput = page.getByLabel('Your name');
+  await nameInput.fill('Avery');
+  await page.fill('input[aria-label="Search songs"]', 'digital love');
+  await page.waitForTimeout(400);
+  await page.getByRole('button', { name: 'Request "Digital Love"' }).click();
+  await expect(
+    page.getByText('Request for "Digital Love" sent to the DJ queue.')
+  ).toBeVisible();
+
+  await page.reload();
+  await expect(nameInput).toHaveValue('Avery');
+
+  const clearButton = page.getByRole('button', { name: 'Not you? Clear' });
+  await expect(clearButton).toBeVisible();
+  await clearButton.click();
+  await expect(nameInput).toHaveValue('');
+  await expect(clearButton).toBeHidden();
+
+  await page.reload();
+  await expect(nameInput).toHaveValue('');
+});

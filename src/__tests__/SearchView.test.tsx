@@ -2,12 +2,29 @@ import '@testing-library/jest-dom/vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse, type HttpResponseResolver } from 'msw';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it
+} from 'vitest';
 import App from '../App';
 import { server } from '../test/msw-server';
+import { __resetStorageProbeForTests } from '../lib/requesterStorage';
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
-afterEach(() => server.resetHandlers());
+beforeEach(() => {
+  window.localStorage.clear();
+  __resetStorageProbeForTests();
+});
+afterEach(() => {
+  server.resetHandlers();
+  window.localStorage.clear();
+  __resetStorageProbeForTests();
+});
 afterAll(() => server.close());
 
 const searchEndpoint = '/.netlify/functions/search';
