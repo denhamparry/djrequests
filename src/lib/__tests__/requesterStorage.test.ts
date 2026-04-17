@@ -1,9 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   __resetStorageProbeForTests,
   clearRequesterName,
   loadRequesterName,
-  saveRequesterName
+  saveRequesterName,
+  TTL_MS
 } from '../requesterStorage';
 
 const STORAGE_KEY = 'djrequests:requester';
@@ -48,9 +49,66 @@ describe('requesterStorage', () => {
       const huge = 'a'.repeat(201);
       window.localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ name: huge })
+        JSON.stringify({ name: huge, savedAt: Date.now() })
       );
       expect(loadRequesterName()).toBeNull();
+    });
+  });
+
+  describe('TTL', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('returns the stored name when age is below TTL', () => {
+      const base = new Date('2026-04-17T20:00:00Z');
+      vi.setSystemTime(base);
+      saveRequesterName('Avery');
+      vi.setSystemTime(new Date(base.getTime() + TTL_MS - 1));
+      expect(loadRequesterName()).toBe('Avery');
+    });
+
+    it('returns null and removes the entry when age exceeds TTL', () => {
+      const base = new Date('2026-04-17T20:00:00Z');
+      vi.setSystemTime(base);
+      saveRequesterName('Avery');
+      vi.setSystemTime(new Date(base.getTime() + TTL_MS + 1));
+      expect(loadRequesterName()).toBeNull();
+      expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull();
+    });
+
+    it('returns null for legacy payloads without savedAt', () => {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ name: 'Avery' })
+      );
+      expect(loadRequesterName()).toBeNull();
+    });
+
+    it('returns null when savedAt is not a finite number', () => {
+      for (const savedAt of ['yesterday', NaN, Infinity, null]) {
+        window.localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ name: 'Avery', savedAt })
+        );
+        expect(loadRequesterName()).toBeNull();
+      }
+    });
+
+    it('saveRequesterName stamps savedAt with the current time', () => {
+      const base = new Date('2026-04-17T20:00:00Z');
+      vi.setSystemTime(base);
+      saveRequesterName('Avery');
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      expect(raw).not.toBeNull();
+      expect(JSON.parse(raw as string)).toEqual({
+        name: 'Avery',
+        savedAt: base.getTime()
+      });
     });
   });
 
@@ -59,7 +117,7 @@ describe('requesterStorage', () => {
       saveRequesterName('  Bob  ');
       const raw = window.localStorage.getItem(STORAGE_KEY);
       expect(raw).not.toBeNull();
-      expect(JSON.parse(raw as string)).toEqual({ name: 'Bob' });
+      expect(JSON.parse(raw as string)).toMatchObject({ name: 'Bob' });
     });
 
     it('is a no-op for empty input', () => {
