@@ -1,7 +1,7 @@
 # GitHub Issue #102: add npm script wrapping ImageMagick favicon regeneration
 
 **Issue:** [#102](https://github.com/denhamparry/djrequests/issues/102)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-17
 
 ## Problem Statement
