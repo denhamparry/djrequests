@@ -181,10 +181,17 @@ describe('Preview button', () => {
       await vi.waitFor(() => expect(btn).toHaveAttribute('data-state', 'error'));
       expect(btn).toHaveAttribute('aria-label', expect.stringMatching(/tap to retry/i));
 
+      await vi.waitFor(() =>
+        expect(screen.getByText(/Preview for Song One failed\./i)).toBeInTheDocument()
+      );
+
       vi.advanceTimersByTime(2000);
 
       await vi.waitFor(() => expect(btn).toHaveAttribute('data-state', 'idle'));
       expect(btn).toHaveAttribute('aria-label', expect.stringMatching(/^Preview Song One/));
+      expect(
+        screen.queryByText(/Preview for Song One failed\./i)
+      ).not.toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
@@ -205,6 +212,9 @@ describe('Preview button', () => {
     // Give any microtasks a chance to flush.
     await Promise.resolve();
     expect(btn).not.toHaveAttribute('data-state', 'error');
+    expect(
+      screen.queryByText(/Preview for Song One failed\./i)
+    ).not.toBeInTheDocument();
   });
 
   it('clicking during the error window retries and clears the error', async () => {
