@@ -1,7 +1,7 @@
 # GitHub Issue #90: enhancement(a11y): announce preview errors via aria-live region
 
 **Issue:** [#90](https://github.com/denhamparry/djrequests/issues/90)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-17
 
 ## Problem Statement
