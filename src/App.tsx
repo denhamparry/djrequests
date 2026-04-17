@@ -250,7 +250,7 @@ function App() {
           required
           onChange={(event) => setRequesterName(event.target.value)}
         />
-        {persistedName !== null && persistedName === requesterName && (
+        {persistedName !== null && (
           <button
             type="button"
             className="link-button"
