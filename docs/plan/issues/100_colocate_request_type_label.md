@@ -1,7 +1,7 @@
 # GitHub Issue #100: colocate REQUEST_TYPE_LABEL with REQUEST_TYPES in shared/types
 
 **Issue:** [#100](https://github.com/denhamparry/djrequests/issues/100)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-17
 
 ## Problem Statement
@@ -214,3 +214,97 @@ npm run build
   belong in the same module as that type.
 - When a constant is "load-bearing" (breaks external integration if
   edited), co-locate a test that pins its values.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-17
+**Original Plan Date:** 2026-04-17
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation
+
+### Strengths
+
+- Accurate code references: `REQUEST_TYPE_LABEL` at `request.ts:84`, call
+  site at line 167, and `_validate.ts` already importing from
+  `shared/types` are all verified correct.
+- Correctly identifies that `shared/` files are bundled into Netlify
+  functions by esbuild, so the move has no runtime impact.
+- Scope is minimal and proportionate to a nice-to-have enhancement.
+- The pinning unit test is exactly the right mitigation for the
+  "Google Form option text drift" risk the original comment warned
+  about.
+
+### Gaps Identified
+
+1. **Gap:** Plan's *primary* test location is
+   `shared/__tests__/types.test.ts`, but `vite.config.ts` `test.include`
+   does **not** match `shared/**`. A test placed there would silently
+   never run.
+   - **Impact:** High (false sense of coverage).
+   - **Recommendation:** Use the fallback location the plan already
+     offers — `netlify/functions/__tests__/requestTypeLabels.test.ts` —
+     as the *only* location. Do not attempt the `shared/__tests__/`
+     option without also updating `vite.config.ts` `include`, which
+     expands scope unnecessarily.
+
+### Edge Cases Not Covered
+
+None material. The refactor is a pure move with no behavioural change;
+existing `request.test.ts` coverage (which asserts the POST body)
+already guards against accidental regressions.
+
+### Alternative Approaches Considered
+
+1. **Expand `vite.config.ts` to include `shared/**/*.test.ts`** and
+   colocate the test in `shared/__tests__/`.
+   - **Pros:** Test sits next to the code it pins.
+   - **Cons:** Widens scope; every future shared type test would need
+     coverage tooling tweaks too. Overkill for this change.
+   - **Verdict:** Defer. Use the existing `netlify/functions/__tests__/`
+     location.
+
+2. **Rename `REQUEST_TYPE_LABEL` → `REQUEST_TYPE_LABELS` (plural).**
+   - **Pros:** Slightly more idiomatic for a `Record` with multiple
+     entries.
+   - **Cons:** Cosmetic; the original was singular.
+   - **Verdict:** Plan chose plural — fine, no objection.
+
+### Risks and Concerns
+
+1. **Risk:** Test placed in a non-included directory gives false
+   coverage.
+   - **Likelihood:** Medium (plan lists it as the primary option).
+   - **Impact:** High (broken pinning test goes unnoticed).
+   - **Mitigation:** During implementation, confirm the new test file
+     is picked up by running `npm run test:unit` and verifying the
+     test name appears in the output.
+
+### Required Changes
+
+- [ ] Treat `netlify/functions/__tests__/requestTypeLabels.test.ts` as
+      the *only* test location for Step 3. Remove the
+      `shared/__tests__/types.test.ts` option from the plan.
+
+### Optional Improvements
+
+- [ ] After implementation, verify via `npm run test:unit` output that
+      the new test actually executes.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate
+- [x] Security implications considered and addressed (no security
+      surface change)
+- [x] Performance impact assessed (none)
+- [x] Test strategy covers critical paths and edge cases
+- [x] Documentation updates planned (none needed)
+- [x] Related issues/dependencies identified
+- [x] Breaking changes documented (none)
