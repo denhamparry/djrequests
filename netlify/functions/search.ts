@@ -16,10 +16,13 @@ type SearchResponse = {
   message?: string;
   error?: string;
   code?: 'upstream_unavailable';
+  requestId?: string;
 };
 
 const USER_AGENT = 'djrequests/1.0 (+https://github.com/denhamparry/djrequests)';
 const ITUNES_SEARCH_ENDPOINT = 'https://itunes.apple.com/search';
+
+const generateRequestId = (): string => crypto.randomUUID().slice(0, 8);
 
 // iTunes Search API has a documented intermittent failure mode where it
 // returns HTTP 404 with a `[newNullResponse]` HTML body instead of a real
@@ -121,10 +124,15 @@ export const handler: Handler = async (event) => {
   }
 
   if (outcome.kind === 'failed') {
+    const requestId = generateRequestId();
+    console.error(
+      `[search] iTunes upstream failure (requestId=${requestId}): ${outcome.detail}`
+    );
     return jsonResponse(503, {
       tracks: [],
-      error: outcome.detail,
-      code: 'upstream_unavailable'
+      error: 'Search is temporarily unavailable. Please try again shortly.',
+      code: 'upstream_unavailable',
+      requestId
     });
   }
 

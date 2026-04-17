@@ -224,7 +224,8 @@ describe('search function', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('returns 503 with upstream_unavailable code after retries are exhausted', async () => {
+  it('returns 503 with upstream_unavailable code after retries are exhausted, redacting upstream detail from the body', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     fetchMock
       .mockResolvedValueOnce(failureResponse(404))
       .mockResolvedValueOnce(failureResponse(404))
@@ -241,7 +242,61 @@ describe('search function', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
     const payload = JSON.parse(response.body);
     expect(payload.code).toBe('upstream_unavailable');
-    expect(payload.error).toMatch(/404/);
     expect(payload.tracks).toEqual([]);
+
+    // Body must not leak raw upstream detail.
+    expect(payload.error).toBe(
+      'Search is temporarily unavailable. Please try again shortly.'
+    );
+    expect(payload.error).not.toMatch(/404/);
+    expect(payload.error).not.toMatch(/iTunes Search API returned status/);
+
+    // Body carries a requestId so support can correlate with logs.
+    expect(typeof payload.requestId).toBe('string');
+    expect(payload.requestId).toHaveLength(8);
+
+    // Raw detail is logged server-side with the same requestId.
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    const logged = String(errorSpy.mock.calls[0][0]);
+    expect(logged).toContain('[search]');
+    expect(logged).toContain(`requestId=${payload.requestId}`);
+    expect(logged).toContain('iTunes Search API returned status 404');
+
+    errorSpy.mockRestore();
+  });
+
+  it('redacts raw network error detail from the body when network failures exhaust retries', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    fetchMock
+      .mockRejectedValueOnce(new Error('socket hang up'))
+      .mockRejectedValueOnce(new Error('socket hang up'))
+      .mockRejectedValueOnce(new Error('socket hang up'));
+
+    const promise = handler(
+      { queryStringParameters: { term: 'beatles' } } as any,
+      {} as any
+    );
+    await vi.runAllTimersAsync();
+    const response = await promise;
+
+    expect(response.statusCode).toBe(503);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const payload = JSON.parse(response.body);
+    expect(payload.code).toBe('upstream_unavailable');
+
+    // Body must not leak the raw fetch error message.
+    expect(payload.error).toBe(
+      'Search is temporarily unavailable. Please try again shortly.'
+    );
+    expect(payload.error).not.toContain('socket hang up');
+    expect(payload.error).not.toContain('network error');
+
+    // Raw detail is logged server-side.
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    const logged = String(errorSpy.mock.calls[0][0]);
+    expect(logged).toContain('socket hang up');
+    expect(logged).toContain(`requestId=${payload.requestId}`);
+
+    errorSpy.mockRestore();
   });
 });
