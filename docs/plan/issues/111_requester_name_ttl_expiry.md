@@ -1,7 +1,7 @@
 # GitHub Issue #111: Consider sessionStorage (or explicit TTL) for requester name
 
 **Issue:** [#111](https://github.com/denhamparry/djrequests/issues/111)
-**Status:** Planning **Date:** 2026-04-17
+**Status:** Reviewed (Approved) **Date:** 2026-04-17
 
 ## Problem Statement
 
@@ -232,8 +232,8 @@ npm run test:e2e
 2. `src/lib/__tests__/requesterStorage.test.ts` — TTL test coverage.
 3. `src/hooks/__tests__/useRequesterName.test.tsx` — update seed payloads to
    include `savedAt`.
-4. `src/__tests__/SearchView.test.tsx` — update seed payloads if any seed
-   the legacy shape directly.
+4. `src/__tests__/SearchView.test.tsx` — no seed updates needed (verified
+   during review: no direct `STORAGE_KEY` seed in the file).
 
 ## Related Issues and Tasks
 
@@ -278,3 +278,41 @@ npm run test:e2e
   since the writer may be from an older app version.
 - Use fake timers in tests for any time-based logic to keep tests
   deterministic and fast.
+
+## Review Summary
+
+**Reviewed:** 2026-04-17
+**Overall Assessment:** Approved
+
+### Scope and Correctness
+
+- TTL approach correctly targets the issue's concern (indefinite PII
+  retention on shared devices) while preserving the single-evening UX.
+- Storage-on-read expiry is the right call — avoids background work and
+  keeps the module pure.
+- Re-use of `STORAGE_KEY` with an expanded payload is safe because
+  `loadRequesterName` already treats malformed shapes as null. Pre-existing
+  #110 entries require one re-entry post-upgrade — called out and acceptable.
+
+### Test Coverage
+
+- Existing seed payloads at `useRequesterName.test.tsx:26-29` and `:64-67`
+  use the legacy `{ name }` shape and will need `savedAt` added — plan
+  correctly identifies this.
+- Verified `SearchView.test.tsx` has no direct `STORAGE_KEY` seed, so no
+  changes are required there. Plan's Files Modified has been updated to
+  reflect this.
+- Boundary testing via `vi.setSystemTime` is the right approach; no
+  real-time delays introduced.
+
+### Minor Notes (non-blocking)
+
+- Clock-skew consideration: a user who rolls their system clock backward
+  could extend the TTL indefinitely. Negligible attack surface for this
+  app — no action needed.
+- If a future plan wants a shorter TTL (e.g. 6h for heavy shared-device
+  scenarios), exporting `TTL_MS` as done here makes that trivial.
+
+### Outcome
+
+Approved for implementation. Proceed to `/workflow-action-plan`.
