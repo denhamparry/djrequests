@@ -339,4 +339,41 @@ describe('Preview button', () => {
     expect(btn).toHaveAttribute('data-state', 'idle');
   });
 
+  it('clears the error state when the errored track drops out of results', async () => {
+    playSpy.mockImplementation(function () {
+      const err = new Error('blocked');
+      err.name = 'NotAllowedError';
+      return Promise.reject(err);
+    });
+
+    const { user } = await renderWithTracks([track()]);
+    const btn = screen.getByRole('button', { name: /Preview Song One by Artist A/i });
+
+    await user.click(btn);
+    await vi.waitFor(() => expect(btn).toHaveAttribute('data-state', 'error'));
+    expect(screen.getByText(/Preview for Song One failed\./i)).toBeInTheDocument();
+
+    server.use(
+      http.get(searchEndpoint, () =>
+        HttpResponse.json({
+          tracks: [
+            track({
+              id: '2',
+              title: 'Song Two',
+              previewUrl: 'https://example.com/preview2.m4a'
+            })
+          ]
+        })
+      )
+    );
+
+    await user.type(screen.getByLabelText(/Search songs/i), ' more');
+
+    await vi.waitFor(() => expect(screen.queryByText('Song One')).not.toBeInTheDocument());
+
+    expect(screen.queryByText(/Preview for Song One failed\./i)).not.toBeInTheDocument();
+    const btn2 = screen.getByRole('button', { name: /Preview Song Two/i });
+    expect(btn2).toHaveAttribute('data-state', 'idle');
+  });
+
 });
