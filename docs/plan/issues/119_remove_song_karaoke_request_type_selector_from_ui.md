@@ -1,7 +1,7 @@
 # GitHub Issue #119: Remove Song/Karaoke request type selector from UI
 
 **Issue:** [#119](https://github.com/denhamparry/djrequests/issues/119)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-17
 
 ## Problem Statement
@@ -512,3 +512,160 @@ radio.
   submissions to 400.
 - No runtime monitoring changes required; the existing `requestId` /
   `trackId` logs remain the source of truth for failures.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-17
+**Original Plan Date:** 2026-04-17
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation
+
+### Strengths
+
+- **Decision surfaced and justified.** The issue explicitly asked for a
+  call between "strip end-to-end" and "keep backend plumbing". The plan
+  picks strip end-to-end and grounds the choice in concrete repo norms
+  ("Don't design for hypothetical future requirements", "delete unused
+  code completely"), not just personal preference.
+- **Call sites enumerated by layer.** Every match from the
+  `request.?type|karaoke|RequestType|request-type` grep is accounted
+  for. No "and any other references" hand-wave.
+- **Google Form coordination called out.** The plan identifies the only
+  out-of-repo deploy constraint (the form's `Request type` question is
+  currently required; the function dropping `entry.1792970976` will
+  400) and puts it in the PR body as a pre-deploy step.
+- **Doc symmetry.** Both README and CLAUDE.md are updated — consistent
+  with prior issues in this repo that often miss CLAUDE.md.
+
+### Gaps Identified
+
+1. **Gap 1:** Plan Step 10 doesn't specify whether the Form's
+   `Request type` question should be **deleted** or **made optional**.
+   The issue body says "the form's Request type question should be
+   made optional or removed; document the chosen path in CLAUDE.md /
+   README."
+   - **Impact:** Low (either outcome makes production submissions
+     succeed — but the PR body / README instruction should be
+     unambiguous so the maintainer doesn't have to guess).
+   - **Recommendation:** Pick **"made optional"** (preserves the
+     existing `entry.1792970976` binding in case the field is ever
+     revived, and requires a smaller Form edit). Update Step 10 to
+     say explicitly: "README and CLAUDE.md should state that the
+     Request type question is no longer required; the maintainer
+     should edit the Google Form to set that question to
+     Optional (not delete it) so the `entry.<id>` is preserved for
+     future use." This is a plan-level wording fix, not a code
+     change.
+
+2. **Gap 2:** Step 7 (`src/lib/googleForm.ts`) says "no edits required
+   unless a type error surfaces" but the function signature
+   `submitSongRequest(song: Song, details: Requester)` is part of the
+   public shape of the client library. After `Requester` loses
+   `requestType`, the callable shape changes in a user-visible way
+   (App.tsx calls with `{ name: trimmedName }` only).
+   - **Impact:** Low — TypeScript will refuse to compile stale calls,
+     so anything that still passes `requestType` will fail the lint
+     step anyway.
+   - **Recommendation:** Implementation can leave Step 7 as
+     "verify — no edits expected". Just confirm nothing else in `src/`
+     imports `Requester` before landing (grep confirms only
+     `App.tsx` and `googleForm.ts` do).
+
+### Edge Cases Not Covered
+
+1. **Stale Apps Script deployment.** If the code ships but the Apps
+   Script bound to the Form hasn't been redeployed from the updated
+   `apps-script/index.ts`, the stale script will still try to read
+   `namedValues["Request type"]`. With the Form question present and
+   optional this is harmless (`undefined` → `null` → no-op if the
+   stale script still renders a `—` row). With the Form question
+   deleted, `namedValues["Request type"]` just isn't there, again
+   harmless. But the Doc will temporarily show a `Request type: —`
+   row until the script is redeployed.
+   - **Current Plan:** Step 8 updates the Apps Script code, but
+     there's no deployment ordering guidance in the PR body.
+   - **Recommendation:** Add a single bullet to the PR body: "After
+     merging, redeploy the Apps Script by copy-pasting
+     `apps-script/index.ts` and `apps-script/format.ts` into the
+     linked Apps Script project." No plan-section change required —
+     this goes in the PR description.
+
+2. **Visual regression.** Removing the fieldset + its CSS (`.request-type`,
+   `.radio-option`) could shift layout around the search form. The
+   repo has no snapshot or visual regression test.
+   - **Current Plan:** Calls for a manual `npm run dev` smoke after
+     Step 2.
+   - **Recommendation:** Keep the manual smoke as the verification —
+     adding a new visual regression test would violate the "don't
+     add features beyond what the task requires" norm.
+
+### Alternatives Considered in Review
+
+1. **Alternative 1:** Gate the UI behind a feature flag so the backend
+   keeps accepting/requiring `requestType` but the guest never sees
+   the radios.
+   - **Pros:** Fully reversible without a code change.
+   - **Cons:** Introduces a flag for a decision the issue has already
+     made; every layer below the UI gets no simpler; dead code grows.
+   - **Verdict:** Worse than the chosen approach. Rejected.
+
+2. **Alternative 2:** Keep `Requester.requestType` optional so the
+   backend accepts payloads with or without it.
+   - **Pros:** Smallest blast radius if the Apps Script or Form
+     deploys out of order.
+   - **Cons:** Leaves a dead enum, a one-entry label map, and a
+     validation branch that only ever sees one value. Same "dead
+     code" downsides as the already-rejected Option B.
+   - **Verdict:** Still violates repo norms. Rejected in favour of
+     clean removal + deploy-ordering guidance.
+
+### Risks and Concerns
+
+1. **Risk 1:** Production Form submissions break between the Netlify
+   deploy and the Google Form edit.
+   - **Likelihood:** Medium (requires human coordination).
+   - **Impact:** Medium (guests see a 502 via the function's
+     "Google Form responded with status 400" path).
+   - **Mitigation:** Do the Form edit (set `Request type` question
+     to Optional) **before** merging the PR. Document this in the
+     PR body as the first checkbox on the Test Plan. The existing
+     `requestId`/`trackId` logs will make any regression debuggable.
+
+2. **Risk 2:** `enumField` deletion breaks a future refactor that
+   assumes the helper exists.
+   - **Likelihood:** Low. Grep confirms single caller.
+   - **Impact:** Low. Anything that reintroduces enum validation
+     can restore the helper from git history in one commit.
+   - **Mitigation:** None needed.
+
+### Required Changes
+
+- [ ] Update Step 10 to specify "make the Google Form question
+      Optional (do not delete)" so the `entry.<id>` binding is
+      preserved. (Documentation-only wording fix.)
+
+### Optional Improvements
+
+- [ ] Add an Apps Script redeploy bullet to the PR description (not
+      the plan itself) so the Doc output catches up with the code.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate (verified via grep)
+- [x] Security implications considered (no new attack surface; a
+      validation branch is removed but the field it guarded is also
+      removed, so there is nothing to validate)
+- [x] Performance impact assessed (negligible — one fewer form field
+      on each POST)
+- [x] Test strategy covers critical paths and edge cases
+- [x] Documentation updates planned (README + CLAUDE.md)
+- [x] Related issues/dependencies identified (#93, #100)
+- [x] Breaking changes documented (Google Form coordination)
