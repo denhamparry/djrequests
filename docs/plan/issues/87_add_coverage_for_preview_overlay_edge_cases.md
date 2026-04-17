@@ -1,7 +1,7 @@
 # GitHub Issue #87: test(ui): add coverage for preview overlay edge cases (results-change, ended, error)
 
 **Issue:** [#87](https://github.com/denhamparry/djrequests/issues/87)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-17
 
 ## Problem Statement
@@ -249,3 +249,120 @@ Safer future refactors of the preview audio state machine.
   `afterEach`).
 - Prefer `vi.waitFor` over arbitrary `await new Promise(setTimeout)` —
   mirrors existing idioms.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-17
+**Original Plan Date:** 2026-04-17
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation with the clarifications below
+  applied during coding (no plan revision needed).
+
+### Strengths
+
+- All code references verified against `src/App.tsx`: line numbers (43-66,
+  51, 56, 68-98, 91-97, 114-121) are accurate.
+- Scope is correctly constrained: pure test-coverage addition, no
+  production-code changes, no architectural churn.
+- Reuses existing test infrastructure (`renderWithTracks` helper,
+  `playSpy`/`pauseSpy` lifecycle, `playSpy.mock.contexts[0]` pattern) —
+  matches established conventions in the file.
+- Recognises the important semantic distinction in the `AbortError` branch
+  (intentionally does NOT reset state) and plans the right assertion
+  (absence of `console.warn`).
+
+### Gaps Identified
+
+1. **Gap: AbortError test needs a deterministic tick to prove `.catch` ran.**
+   - **Impact:** Medium
+   - **Recommendation:** After clicking the preview button, `await` a
+     microtask/macrotask tick (e.g. `await vi.waitFor(() => expect(playSpy)
+     .toHaveBeenCalled())` followed by `await Promise.resolve()` or a
+     zero-delay `setTimeout` flush) before asserting `console.warn` was
+     never called. Otherwise the assertion could pass simply because the
+     promise microtask hasn't drained yet, giving a false-negative that
+     masks regressions where the branch is removed.
+
+2. **Gap: Results-change test relies on `useSongSearch` debounce (see
+   `src/hooks/useSongSearch.ts:44`).**
+   - **Impact:** Low-Medium
+   - **Recommendation:** Use `await screen.findByText(...)` /
+     `waitForElementToBeRemoved` (already imported transitively via
+     `@testing-library/react`) to wait for the new results to render after
+     the second handler swap. Do not rely on `vi.useFakeTimers` for this
+     test — it would fight the `userEvent` setup and MSW. The existing
+     `anything`-based fetch pattern already handles debounce implicitly.
+
+### Edge Cases Not Covered
+
+1. **Edge Case: `pause` event firing during `ended` reset.**
+   - **Current Plan:** The `ended` test dispatches only `ended`.
+   - **Recommendation:** Acceptable as-is — real audio fires `ended`
+     without a subsequent `pause`, and the existing `pause` listener
+     already clears loading state (tested indirectly). Skip.
+
+2. **Edge Case: `AbortError` followed by a successful `playing` event.**
+   - **Current Plan:** Not covered.
+   - **Recommendation:** Out of scope for this ticket. The single-player
+     invariant test already exercises a rapid-toggle scenario. Skip.
+
+### Alternative Approaches Reviewed
+
+1. **Alternative: Extract preview state machine into a custom hook and
+   test that in isolation.**
+   - **Pros:** Cleaner unit boundaries, easier to test.
+   - **Cons:** Production refactor outside the ticket's scope; invites
+     separate review.
+   - **Verdict:** Rejected — plan correctly stays additive.
+
+### Risks and Concerns
+
+1. **Risk: Results-change test flakiness from debounce interaction.**
+   - **Likelihood:** Low
+   - **Impact:** Low (would only affect the one new test)
+   - **Mitigation:** Use `findBy*`/`waitFor` with generous default
+     timeout (Vitest default 1000ms is usually sufficient, `vi.waitFor`
+     can be bumped if needed).
+
+2. **Risk: `console.warn` spy leakage between tests.**
+   - **Likelihood:** Low
+   - **Impact:** Low
+   - **Mitigation:** Each new test that spies on `console.warn` should
+     call `.mockRestore()` in a local `try/finally` or use
+     `vi.spyOn(console, 'warn').mockImplementation(() => {})` with a
+     reference captured in the test scope.
+
+### Required Changes
+
+None block implementation. Apply the two gap-level refinements during
+coding:
+
+- [ ] AbortError test: flush microtasks / await `playSpy` call before
+      asserting `console.warn` was not called.
+- [ ] Results-change test: use `findBy*`/`waitFor` to wait for the new
+      result set rather than arbitrary delays.
+
+### Optional Improvements
+
+- [ ] Consider adding a tiny helper `getAudioElement()` returning
+      `playSpy.mock.contexts[0] as HTMLMediaElement` to reduce duplication
+      across the three new tests.
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered (3 branches × ≥1
+      test each)
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate
+- [x] Security implications considered (N/A — test-only change)
+- [x] Performance impact assessed (N/A — test-only change)
+- [x] Test strategy covers critical paths and edge cases
+- [x] Documentation updates planned (this plan doc)
+- [x] Related issues/dependencies identified (#83, #84, #86)
+- [x] Breaking changes documented (none)
