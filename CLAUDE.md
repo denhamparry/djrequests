@@ -85,8 +85,8 @@ The app uses Google Form as a submission endpoint to avoid managing a database:
 
 1. Create Google Form with these fields:
    - Visible (short answer): `Requester Name`, `Contact`
-   - Visible (multiple choice, required): `Request type` — options `Song`, `Karaoke`
    - Hidden/prefilled (short answer): `Track ID`, `Track Name`, `Artist Name`, `Album Name`, `Artwork URL`, `Preview URL`
+   - Note: a previous revision of the app sent a `Request type` multiple-choice value. The app no longer submits that field. If an existing Form still has a `Request type` question, set it to Optional rather than deleting it so the `entry.<id>` is preserved.
 
 2. Get prefilled URL:
    - Form → ⋮ menu → "Get pre-filled link"

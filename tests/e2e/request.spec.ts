@@ -49,7 +49,6 @@ test('smoke: user can search and prepare a song request', async ({ page }) => {
     expect(body.song.id).toBe('321');
     expect(body.song.title).toBe('Digital Love');
     expect(body.requester.name).toBe('Avery');
-    expect(body.requester.requestType).toBe('karaoke');
 
     return route.fulfill({
       status: 200,
@@ -71,13 +70,6 @@ test('smoke: user can search and prepare a song request', async ({ page }) => {
   await expect(requestButton).toBeDisabled();
 
   await page.fill('input[aria-label="Your name"]', 'Avery');
-
-  const songRadio = page.getByRole('radio', { name: 'Song' });
-  const karaokeRadio = page.getByRole('radio', { name: 'Karaoke' });
-  await expect(songRadio).toBeChecked();
-  await expect(karaokeRadio).not.toBeChecked();
-  await karaokeRadio.check();
-  await expect(karaokeRadio).toBeChecked();
 
   const previewButton = page.getByRole('button', {
     name: 'Preview Digital Love by Daft Punk'

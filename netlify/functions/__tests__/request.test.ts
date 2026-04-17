@@ -90,7 +90,6 @@ describe('request function', () => {
           },
           requester: {
             name: 'Avery',
-            requestType: 'karaoke',
             contact: 'instagram.com/avery'
           }
         })
@@ -113,7 +112,6 @@ describe('request function', () => {
     expect(params.get(FORM_FIELD_IDS.artworkUrl)).toBe('https://example.com/art.jpg');
     expect(params.get(FORM_FIELD_IDS.previewUrl)).toBe('https://example.com/preview.m4a');
     expect(params.get(FORM_FIELD_IDS.requesterName)).toBe('Avery');
-    expect(params.get(FORM_FIELD_IDS.requestType)).toBe('Karaoke');
     expect(params.get(FORM_FIELD_IDS.contact)).toBe('instagram.com/avery');
     expect(params.get('fvv')).toBe('1');
     expect(params.get('submit')).toBe('Submit');
@@ -143,7 +141,7 @@ describe('request function', () => {
       makeEvent({
         body: JSON.stringify({
           song: { id: '1', title: 'T', artist: 'A' },
-          requester: { name: 'Avery', requestType: 'song' }
+          requester: { name: 'Avery' }
         })
       }),
       {} as any
@@ -163,7 +161,7 @@ describe('request function', () => {
       makeEvent({
         body: JSON.stringify({
           song: { id: '1', title: 't', artist: 'a' },
-          requester: { name: 'Avery', requestType: 'song' }
+          requester: { name: 'Avery' }
         })
       }),
       {} as any
@@ -191,7 +189,7 @@ describe('request function', () => {
       makeEvent({
         body: JSON.stringify({
           song: { id: '1', title: 'T', artist: 'A' },
-          requester: { name: 'Avery', requestType: 'song' }
+          requester: { name: 'Avery' }
         })
       }),
       {} as any
@@ -228,7 +226,7 @@ describe('request function', () => {
       makeEvent({
         body: JSON.stringify({
           song: { id: '1', title: 'T', artist: 'A' },
-          requester: { name: 'Avery', requestType: 'song' }
+          requester: { name: 'Avery' }
         })
       }),
       {} as any
@@ -258,7 +256,7 @@ describe('request function', () => {
       makeEvent({
         body: JSON.stringify({
           song: { id: '1', title: 'T', artist: 'A' },
-          requester: { name: 'Avery', requestType: 'song' }
+          requester: { name: 'Avery' }
         })
       }),
       {} as any
@@ -284,7 +282,7 @@ describe('request function', () => {
       makeEvent({
         body: JSON.stringify({
           song: { id: '1', title: 'T', artist: 'A' },
-          requester: { name: 'Avery', requestType: 'song' }
+          requester: { name: 'Avery' }
         })
       }),
       {} as any
@@ -336,7 +334,6 @@ describe('request function', () => {
             song: { id: '99', title: 'T', artist: 'A' },
             requester: {
               name: 'Avery Secret',
-              requestType: 'song',
               contact: 'avery@private.test'
             }
           })
@@ -361,7 +358,7 @@ describe('request function', () => {
         makeEvent({
           body: JSON.stringify({
             song: { id: trackId, title: 'T', artist: 'A' },
-            requester: { name: 'Avery', requestType: 'song' }
+            requester: { name: 'Avery' }
           })
         }),
         {} as any
@@ -409,7 +406,7 @@ describe('request function', () => {
       makeEvent({
         body: JSON.stringify({
           song: { id: '1', title: 'Test', artist: 'Artist' },
-          requester: { name: 'Avery', requestType: 'song' }
+          requester: { name: 'Avery' }
         })
       }),
       {} as any
@@ -434,7 +431,7 @@ describe('request function', () => {
       makeEvent({
         body: JSON.stringify({
           song: { id: '1', title: 'T', artist: 'A' },
-          requester: { name: 'Avery', requestType: 'song' }
+          requester: { name: 'Avery' }
         })
       }),
       {} as any
@@ -454,7 +451,7 @@ describe('request function', () => {
     fetchMock.mockResolvedValue({ ok: true, status: 200 });
     const body = JSON.stringify({
       song: { id: '1', title: 'T', artist: 'A' },
-      requester: { name: 'Avery', requestType: 'song' }
+      requester: { name: 'Avery' }
     });
 
     for (let i = 0; i < 5; i += 1) {
@@ -478,7 +475,7 @@ describe('request function', () => {
     fetchMock.mockResolvedValue({ ok: true, status: 200 });
     const body = JSON.stringify({
       song: { id: '1', title: 'T', artist: 'A' },
-      requester: { name: 'Avery', requestType: 'song' }
+      requester: { name: 'Avery' }
     });
 
     for (let i = 0; i < 5; i += 1) {

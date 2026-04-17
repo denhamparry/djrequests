@@ -1,6 +1,5 @@
 import type { Handler } from '@netlify/functions';
 import { FORM_FIELD_IDS } from '../../shared/formFields';
-import { REQUEST_TYPE_LABELS } from '../../shared/types';
 import { corsHeaders } from './_cors';
 import { checkRateLimit, resolveClientKey } from './_rateLimit';
 import { validateRequestBody } from './_validate';
@@ -153,11 +152,6 @@ export const handler: Handler = async (event) => {
   appendField(params, FORM_FIELD_IDS.artworkUrl, song.artworkUrl);
   appendField(params, FORM_FIELD_IDS.previewUrl, song.previewUrl);
   appendField(params, FORM_FIELD_IDS.requesterName, requester.name);
-  appendField(
-    params,
-    FORM_FIELD_IDS.requestType,
-    REQUEST_TYPE_LABELS[requester.requestType]
-  );
   appendField(params, FORM_FIELD_IDS.contact, requester.contact);
   params.set('submit', 'Submit');
 

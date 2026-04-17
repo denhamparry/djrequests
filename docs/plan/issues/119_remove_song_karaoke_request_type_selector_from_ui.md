@@ -1,7 +1,7 @@
 # GitHub Issue #119: Remove Song/Karaoke request type selector from UI
 
 **Issue:** [#119](https://github.com/denhamparry/djrequests/issues/119)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-17
 
 ## Problem Statement
@@ -645,9 +645,10 @@ radio.
 
 ### Required Changes
 
-- [ ] Update Step 10 to specify "make the Google Form question
+- [x] Update Step 10 to specify "make the Google Form question
       Optional (do not delete)" so the `entry.<id>` binding is
-      preserved. (Documentation-only wording fix.)
+      preserved. (Documentation-only wording fix.) — applied directly
+      during implementation in the README/CLAUDE.md updates.
 
 ### Optional Improvements
 
