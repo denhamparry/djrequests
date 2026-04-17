@@ -1,7 +1,7 @@
 # GitHub Issue #90: enhancement(a11y): announce preview errors via aria-live region
 
 **Issue:** [#90](https://github.com/denhamparry/djrequests/issues/90)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-17
 
 ## Problem Statement
@@ -359,3 +359,106 @@ npm run test:unit
 - Always render live regions before populating them.
 - Announce the event, not the remedy — the button's `aria-label` already
   tells focused users how to retry.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-17
+**Original Plan Date:** 2026-04-17
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation
+
+### Strengths
+
+- Reuses existing `erroredSongId` state and its 2 s auto-clear lifecycle —
+  no new state, no new timers, no new prop drilling. Minimal blast radius.
+- Correctly identifies that live regions must be rendered **before** text
+  changes for AT to announce reliably; the always-rendered empty `<p>` is
+  the right pattern.
+- `polite` (not `assertive`) is the correct verbosity for a non-urgent
+  status event.
+- Test strategy selects the region by its text content rather than role
+  ordering — robust to DOM reshuffling.
+- File/line references validated: `src/App.tsx:56-63` (`flashPreviewError`),
+  `:149-156` (cleanup effect), `:263-287` (existing status regions), and
+  `src/components/PreviewButton.tsx:17-20` (`aria-label` swap) all match
+  current source.
+
+### Gaps Identified
+
+1. **Repeated error on same track within 2 s window.**
+   - **Impact:** Low
+   - **Detail:** If the same track errors twice inside the auto-clear
+     window, `erroredSongId` is reassigned to the same value and the
+     announcement text does not change — AT will not re-announce. In
+     practice the retry path calls `clearErrorTimer()` + `setErroredSongId(null)`
+     synchronously before the next play attempt, so the string transitions
+     `"…failed." → "" → "…failed."` and AT does re-announce. Worth a
+     brief note in the implementation but no code change needed.
+   - **Recommendation:** Add a one-line comment at the live-region render
+     site documenting the transition-through-empty behaviour so a future
+     reader doesn't "optimise" it away.
+
+### Edge Cases Not Covered
+
+1. **Preview errors on a track whose title contains HTML-like characters**
+   (e.g. `"AC/DC — <Track>"`).
+   - **Current Plan:** Plan interpolates `erroredSong.title` into the live
+     region via JSX text — React escapes automatically, so no XSS risk.
+   - **Recommendation:** No change; confirmed safe by JSX escaping.
+
+2. **AT user disables announcements or uses assertive-only mode.**
+   - **Current Plan:** Not addressed (out of scope).
+   - **Recommendation:** Accept as out of scope — `polite` is the W3C
+     recommendation for status events.
+
+### Alternative Approaches Considered
+
+Already enumerated thoroughly in the plan's "Alternative Approaches
+Considered" section. No further alternatives surfaced during review.
+
+### Risks and Concerns
+
+1. **Testing Library may select the wrong `role="status"` node.**
+   - **Likelihood:** Medium
+   - **Impact:** Low (test flakiness, not production bug)
+   - **Mitigation:** Plan already prescribes selecting by text content
+     (`screen.getByText(/Preview for Song One failed\./i)`) rather than
+     role. Keep this discipline in the implementation.
+
+2. **CSS `.sr-only` utility interaction with future styling work.**
+   - **Likelihood:** Low
+   - **Impact:** Low
+   - **Mitigation:** Utility name is conventional and unlikely to collide.
+     No additional action required.
+
+### Required Changes
+
+None.
+
+### Optional Improvements
+
+- [ ] Add an inline comment near the live-region JSX documenting why the
+      `<p>` is always rendered (prevents accidental removal during future
+      refactors).
+- [ ] Add a dedicated test for the "erroring track removed from results"
+      path (covered implicitly via the existing `useEffect` cleanup, but
+      an explicit test would lock in the behaviour).
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue #90
+- [x] Plan scope matches issue scope (no over-engineering)
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate
+- [x] Security implications considered (JSX escaping)
+- [x] Performance impact assessed (negligible — one extra `find()` per
+      render when `erroredSongId` is set)
+- [x] Test strategy covers critical paths and edge cases
+- [x] Documentation updates planned (none needed — behaviour is internal)
+- [x] Related issues/dependencies identified (#85 lineage)
+- [x] Breaking changes documented (none)
