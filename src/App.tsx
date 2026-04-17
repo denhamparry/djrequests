@@ -9,6 +9,11 @@ const SUBMIT_COOLDOWN_MS = 3000;
 const PREVIEW_LOADING_TIMEOUT_MS = 8000;
 const PREVIEW_ERROR_DISPLAY_MS = 2000;
 
+type PlaybackState =
+  | { kind: 'idle' }
+  | { kind: 'loading'; songId: string }
+  | { kind: 'playing'; songId: string };
+
 function App() {
   const { query, setQuery, results, status, message, error } = useSongSearch();
   const [requesterName, setRequesterName] = useState('');
@@ -19,8 +24,7 @@ function App() {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
-  const [playingSongId, setPlayingSongId] = useState<string | null>(null);
-  const [loadingSongId, setLoadingSongId] = useState<string | null>(null);
+  const [playback, setPlayback] = useState<PlaybackState>({ kind: 'idle' });
   const [erroredSongId, setErroredSongId] = useState<string | null>(null);
   const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -39,8 +43,7 @@ function App() {
 
   const resetPreviewState = () => {
     clearLoadingTimer();
-    setPlayingSongId(null);
-    setLoadingSongId(null);
+    setPlayback({ kind: 'idle' });
   };
 
   const clearErrorTimer = () => {
@@ -65,12 +68,14 @@ function App() {
     audio.preload = 'none';
     audio.addEventListener('playing', () => {
       clearLoadingTimer();
-      setLoadingSongId(null);
+      setPlayback((prev) =>
+        prev.kind === 'loading' ? { kind: 'playing', songId: prev.songId } : prev
+      );
     });
     audio.addEventListener('ended', resetPreviewState);
     audio.addEventListener('pause', () => {
       clearLoadingTimer();
-      setLoadingSongId(null);
+      setPlayback((prev) => (prev.kind === 'loading' ? { kind: 'idle' } : prev));
     });
     audio.addEventListener('error', resetPreviewState);
     // `stalled` fires when the browser is trying to fetch media data but
@@ -93,7 +98,7 @@ function App() {
       setErroredSongId(null);
     }
 
-    if (playingSongId === song.id) {
+    if (playback.kind === 'playing' && playback.songId === song.id) {
       audio.pause();
       resetPreviewState();
       return;
@@ -101,15 +106,13 @@ function App() {
 
     audio.pause();
     audio.src = song.previewUrl;
-    setPlayingSongId(song.id);
-    setLoadingSongId(song.id);
+    setPlayback({ kind: 'loading', songId: song.id });
 
     clearLoadingTimer();
     loadingTimer.current = setTimeout(() => {
       loadingTimer.current = null;
       audio.pause();
-      setPlayingSongId(null);
-      setLoadingSongId(null);
+      setPlayback({ kind: 'idle' });
     }, PREVIEW_LOADING_TIMEOUT_MS);
 
     audio.play().catch((err: unknown) => {
@@ -135,13 +138,13 @@ function App() {
   );
 
   useEffect(() => {
-    if (!playingSongId) return;
-    const stillPresent = results.some((song) => song.id === playingSongId);
+    if (playback.kind === 'idle') return;
+    const stillPresent = results.some((song) => song.id === playback.songId);
     if (!stillPresent) {
       audioRef.current?.pause();
       resetPreviewState();
     }
-  }, [results, playingSongId]);
+  }, [results, playback]);
 
   useEffect(() => {
     if (!erroredSongId) return;
@@ -153,8 +156,8 @@ function App() {
   }, [results, erroredSongId]);
 
   const previewStateFor = (songId: string): PreviewState => {
-    if (loadingSongId === songId) return 'loading';
-    if (playingSongId === songId) return 'playing';
+    if (playback.kind === 'loading' && playback.songId === songId) return 'loading';
+    if (playback.kind === 'playing' && playback.songId === songId) return 'playing';
     if (erroredSongId === songId) return 'error';
     return 'idle';
   };
