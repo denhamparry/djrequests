@@ -82,6 +82,20 @@ describe('requesterStorage', () => {
       saveRequesterName('Bob');
       expect(loadRequesterName()).toBe('Bob');
     });
+
+    it('silently swallows setItem throwing (quota exceeded, etc.)', () => {
+      const originalSetItem = window.localStorage.setItem.bind(
+        window.localStorage
+      );
+      window.localStorage.setItem = () => {
+        throw new Error('QuotaExceededError');
+      };
+      try {
+        expect(() => saveRequesterName('Avery')).not.toThrow();
+      } finally {
+        window.localStorage.setItem = originalSetItem;
+      }
+    });
   });
 
   describe('clearRequesterName', () => {

@@ -5,6 +5,8 @@ import {
   saveRequesterName
 } from '../lib/requesterStorage';
 
+const MAX_NAME_LENGTH = 200;
+
 export function useRequesterName() {
   const initial = () => loadRequesterName() ?? '';
   const [name, setName] = useState<string>(initial);
@@ -14,7 +16,7 @@ export function useRequesterName() {
 
   const persist = useCallback((value: string) => {
     const trimmed = value.trim();
-    if (!trimmed) return;
+    if (!trimmed || trimmed.length > MAX_NAME_LENGTH) return;
     saveRequesterName(trimmed);
     setPersistedName(trimmed);
   }, []);
