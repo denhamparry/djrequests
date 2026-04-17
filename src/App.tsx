@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSongSearch } from './hooks/useSongSearch';
 import { RequestError, submitSongRequest } from './lib/googleForm';
 import PreviewButton, { type PreviewState } from './components/PreviewButton';
-import type { Song } from '../shared/types';
+import type { Song, RequestType } from '../shared/types';
 import squirrelsImage from '../squirrels.jpeg';
 
 const SUBMIT_COOLDOWN_MS = 3000;
@@ -17,7 +17,7 @@ type PlaybackState =
 function App() {
   const { query, setQuery, results, status, message, error } = useSongSearch();
   const [requesterName, setRequesterName] = useState('');
-  const [dedication, setDedication] = useState('');
+  const [requestType, setRequestType] = useState<RequestType>('song');
   const [requestingSongId, setRequestingSongId] = useState<string | null>(null);
   const [cooldownSongId, setCooldownSongId] = useState<string | null>(null);
   const [requestFeedback, setRequestFeedback] = useState<{
@@ -185,15 +185,13 @@ function App() {
       return;
     }
 
-    const trimmedDedication = dedication.trim();
-
     setRequestingSongId(songId);
     setRequestFeedback(null);
 
     try {
       await submitSongRequest(song, {
         name: trimmedName,
-        dedication: trimmedDedication || undefined
+        requestType
       });
       setRequestFeedback({
         type: 'success',
@@ -244,17 +242,29 @@ function App() {
         />
       </label>
 
-      <label className="input-label" htmlFor="dedication">
-        <span className="label-text">Dedication (optional)</span>
-        <input
-          id="dedication"
-          aria-label="Dedication"
-          placeholder="e.g. For Sam's birthday"
-          value={dedication}
-          autoComplete="off"
-          onChange={(event) => setDedication(event.target.value)}
-        />
-      </label>
+      <fieldset className="input-label request-type">
+        <legend className="label-text">Request type</legend>
+        <label className="radio-option">
+          <input
+            type="radio"
+            name="request-type"
+            value="song"
+            checked={requestType === 'song'}
+            onChange={() => setRequestType('song')}
+          />
+          <span>Song</span>
+        </label>
+        <label className="radio-option">
+          <input
+            type="radio"
+            name="request-type"
+            value="karaoke"
+            checked={requestType === 'karaoke'}
+            onChange={() => setRequestType('karaoke')}
+          />
+          <span>Karaoke</span>
+        </label>
+      </fieldset>
 
       <label className="input-label" htmlFor="song-search">
         <span className="label-text">Search songs</span>

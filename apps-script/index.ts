@@ -75,7 +75,7 @@ export function onFormSubmit(event: SheetsOnFormSubmitEvent) {
     artistName: namedValues["Artist Name"]?.[0] ?? "Unknown Artist",
     albumName: namedValues["Album Name"]?.[0] ?? null,
     requesterName: namedValues["Requester Name"]?.[0] ?? null,
-    dedication: namedValues["Dedication"]?.[0] ?? null,
+    requestType: namedValues["Request type"]?.[0] ?? null,
     contact: namedValues["Contact"]?.[0] ?? null,
     submittedAtIso: new Date().toISOString(),
   };

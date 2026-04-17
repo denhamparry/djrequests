@@ -1,7 +1,7 @@
 # GitHub Issue #93: Replace "Dedication (optional)" free-text with "Song" / "Karaoke" selection
 
 **Issue:** [#93](https://github.com/denhamparry/djrequests/issues/93)
-**Status:** Reviewed (Approved)
+**Status:** Complete
 **Date:** 2026-04-17
 
 ## Problem Statement
@@ -615,16 +615,16 @@ re-using existing `.input-label` pattern by wrapping radios in a
 **Changes that must be made during implementation (no plan revision
 required):**
 
-- [ ] In Step 3 (`netlify/functions/request.ts`), add an inline comment
+- [x] In Step 3 (`netlify/functions/request.ts`), add an inline comment
       above the `REQUEST_TYPE_LABEL` map noting it must match Google Form
       option labels exactly.
-- [ ] In Step 6 (`tests/e2e/request.spec.ts`), make the new radio
+- [x] In Step 6 (`tests/e2e/request.spec.ts`), make the new radio
       interaction explicit (`getByRole('radio', { name: 'Karaoke'
       }).check()` or `.click()`), not just an outgoing-body assertion.
-- [ ] During Step 4 (`src/App.tsx`), if `.input-label` does not lay out
+- [x] During Step 4 (`src/App.tsx`), if `.input-label` does not lay out
       cleanly on `<fieldset>`, add a scoped `.request-type` CSS rule
       rather than forcing the existing class.
-- [ ] After the `shared/types.ts` rename, run `npx tsc --noEmit` to
+- [x] After the `shared/types.ts` rename, run `npx tsc --noEmit` to
       flush any stray `requester.dedication` references before touching
       test files (cheap compile-time sweep).
 

@@ -10,7 +10,7 @@ describe('buildDocEntry', () => {
       artistName: 'Daft Punk',
       albumName: 'Discovery',
       requesterName: 'Avery',
-      dedication: 'To the dancefloor crew!',
+      requestType: 'Karaoke',
       contact: 'instagram.com/avery',
       submittedAtIso: '2025-10-02T19:30:00.000Z'
     });
@@ -20,7 +20,7 @@ describe('buildDocEntry', () => {
       { label: 'Artist', value: 'Daft Punk' },
       { label: 'Album', value: 'Discovery' },
       { label: 'Requested by', value: 'Avery' },
-      { label: 'Dedication', value: 'To the dancefloor crew!' },
+      { label: 'Request type', value: 'Karaoke' },
       { label: 'Contact', value: 'instagram.com/avery' },
       { label: 'Requested at', value: '2 Oct 2025, 20:30' }
     ]);
@@ -33,7 +33,7 @@ describe('buildDocEntry', () => {
       artistName: 'Mystery Artist',
       albumName: null,
       requesterName: null,
-      dedication: null,
+      requestType: null,
       contact: null,
       submittedAtIso: 'Invalid Date'
     });
@@ -43,7 +43,7 @@ describe('buildDocEntry', () => {
       { label: 'Artist', value: 'Mystery Artist' },
       { label: 'Album', value: '—' },
       { label: 'Requested by', value: 'Guest' },
-      { label: 'Dedication', value: '—' },
+      { label: 'Request type', value: '—' },
       { label: 'Contact', value: '—' },
       { label: 'Requested at', value: 'Invalid Date' }
     ]);

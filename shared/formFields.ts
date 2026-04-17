@@ -6,7 +6,7 @@ export const FORM_FIELD_IDS = {
   artworkUrl: "entry.1913993909",
   previewUrl: "entry.729930720",
   requesterName: "entry.924392852",
-  dedication: "entry.1792970976",
+  requestType: "entry.1792970976",
   contact: "entry.40872869",
 } as const;
 

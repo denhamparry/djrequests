@@ -57,10 +57,10 @@ describe('validateRequestBody', () => {
     if (!result.ok) expect(result.error).toMatch(/too long/);
   });
 
-  it('accepts minimal valid payload with requester.name', () => {
+  it('accepts minimal valid payload with requester.name + requestType', () => {
     const result = validateRequestBody({
       song: baseSong,
-      requester: { name: 'Avery' }
+      requester: { name: 'Avery', requestType: 'song' }
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -74,9 +74,20 @@ describe('validateRequestBody', () => {
       });
       expect(result.value.requester).toEqual({
         name: 'Avery',
-        dedication: null,
+        requestType: 'song',
         contact: null
       });
+    }
+  });
+
+  it('accepts requestType: karaoke', () => {
+    const result = validateRequestBody({
+      song: baseSong,
+      requester: { name: 'Avery', requestType: 'karaoke' }
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.requester.requestType).toBe('karaoke');
     }
   });
 
@@ -89,16 +100,45 @@ describe('validateRequestBody', () => {
   it('rejects whitespace-only requester.name', () => {
     const result = validateRequestBody({
       song: baseSong,
-      requester: { name: '   ' }
+      requester: { name: '   ', requestType: 'song' }
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBe('requester.name is required');
   });
 
+  it('rejects missing requester.requestType', () => {
+    const result = validateRequestBody({
+      song: baseSong,
+      requester: { name: 'Avery' }
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe('requester.requestType is required');
+  });
+
+  it('rejects unknown requester.requestType value', () => {
+    const result = validateRequestBody({
+      song: baseSong,
+      requester: { name: 'Avery', requestType: 'shout' }
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBe('requester.requestType must be one of song, karaoke');
+    }
+  });
+
+  it('rejects non-string requester.requestType', () => {
+    const result = validateRequestBody({
+      song: baseSong,
+      requester: { name: 'Avery', requestType: 42 }
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe('requester.requestType is required');
+  });
+
   it('trims whitespace on required strings', () => {
     const result = validateRequestBody({
       song: { id: '  1  ', title: ' Song ', artist: ' Artist ' },
-      requester: { name: 'Avery' }
+      requester: { name: 'Avery', requestType: 'song' }
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -125,7 +165,7 @@ describe('validateRequestBody', () => {
       },
       requester: {
         name: 'Avery',
-        dedication: 'For the floor',
+        requestType: 'karaoke',
         contact: '@avery'
       }
     });
@@ -133,6 +173,7 @@ describe('validateRequestBody', () => {
     if (result.ok) {
       expect(result.value.song.album).toBe('Album');
       expect(result.value.requester.name).toBe('Avery');
+      expect(result.value.requester.requestType).toBe('karaoke');
       expect(result.value.requester.contact).toBe('@avery');
     }
   });
@@ -140,12 +181,12 @@ describe('validateRequestBody', () => {
   it('treats empty-string optional fields as null', () => {
     const result = validateRequestBody({
       song: { ...baseSong, album: '' },
-      requester: { name: 'Avery', dedication: '' }
+      requester: { name: 'Avery', requestType: 'song', contact: '' }
     });
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.song.album).toBeNull();
-      expect(result.value.requester.dedication).toBeNull();
+      expect(result.value.requester.contact).toBeNull();
     }
   });
 
