@@ -4,7 +4,6 @@ export type SongRequestSubmission = {
   artistName: string;
   albumName?: string | null;
   requesterName?: string | null;
-  requestType?: string | null;
   contact?: string | null;
   submittedAtIso: string;
 };
@@ -27,7 +26,6 @@ export function buildDocEntry(submission: SongRequestSubmission): DocEntry {
     { label: 'Artist', value: submission.artistName },
     { label: 'Album', value: submission.albumName ?? '—' },
     { label: 'Requested by', value: submission.requesterName ?? 'Guest' },
-    { label: 'Request type', value: submission.requestType ?? '—' },
     { label: 'Contact', value: submission.contact ?? '—' },
     { label: 'Requested at', value: formattedTimestamp }
   ];

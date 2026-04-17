@@ -3,7 +3,7 @@ import { useSongSearch } from './hooks/useSongSearch';
 import { useRequesterName } from './hooks/useRequesterName';
 import { RequestError, submitSongRequest } from './lib/googleForm';
 import PreviewButton, { type PreviewState } from './components/PreviewButton';
-import type { Song, RequestType } from '../shared/types';
+import type { Song } from '../shared/types';
 import squirrelsImage from '../squirrels.jpeg';
 
 const SUBMIT_COOLDOWN_MS = 3000;
@@ -24,7 +24,6 @@ function App() {
     clear: clearRequesterName,
     persistedName
   } = useRequesterName();
-  const [requestType, setRequestType] = useState<RequestType>('song');
   const requesterInputRef = useRef<HTMLInputElement | null>(null);
   const [requestingSongId, setRequestingSongId] = useState<string | null>(null);
   const [cooldownSongId, setCooldownSongId] = useState<string | null>(null);
@@ -198,8 +197,7 @@ function App() {
 
     try {
       await submitSongRequest(song, {
-        name: trimmedName,
-        requestType
+        name: trimmedName
       });
       setRequestFeedback({
         type: 'success',
@@ -263,30 +261,6 @@ function App() {
           </button>
         )}
       </label>
-
-      <fieldset className="input-label request-type">
-        <legend className="label-text">Request type</legend>
-        <label className="radio-option">
-          <input
-            type="radio"
-            name="request-type"
-            value="song"
-            checked={requestType === 'song'}
-            onChange={() => setRequestType('song')}
-          />
-          <span>Song</span>
-        </label>
-        <label className="radio-option">
-          <input
-            type="radio"
-            name="request-type"
-            value="karaoke"
-            checked={requestType === 'karaoke'}
-            onChange={() => setRequestType('karaoke')}
-          />
-          <span>Karaoke</span>
-        </label>
-      </fieldset>
 
       <label className="input-label" htmlFor="song-search">
         <span className="label-text">Search songs</span>
