@@ -1,7 +1,7 @@
 # GitHub Issue #93: Replace "Dedication (optional)" free-text with "Song" / "Karaoke" selection
 
 **Issue:** [#93](https://github.com/denhamparry/djrequests/issues/93)
-**Status:** Planning
+**Status:** Reviewed (Approved)
 **Date:** 2026-04-17
 
 ## Problem Statement
@@ -460,3 +460,209 @@ re-using existing `.input-label` pattern by wrapping radios in a
   Doc instead of throwing).
 - After merging, manually edit the live Google Form question **in place**
   before the next event — code alone will not update Google-side state.
+
+## Plan Review
+
+**Reviewer:** Claude Code (workflow-research-plan)
+**Review Date:** 2026-04-17
+**Original Plan Date:** 2026-04-17
+
+### Review Summary
+
+- **Overall Assessment:** Approved
+- **Confidence Level:** High
+- **Recommendation:** Proceed to implementation (with the required changes
+  below folded in during Phase 3; they do not require a plan revision).
+
+### Strengths
+
+- Root cause correctly identified: the plan replaces a low-signal free-text
+  field with a classifier, exactly matching the issue's motivation.
+- Entry-ID stability correctly recognised — the plan reuses
+  `entry.1792970976` by editing the question in-place rather than
+  deleting/recreating it.
+- Apps Script title-vs-ID distinction is explicitly called out in the plan
+  notes (`namedValues` keys on title, not entry ID) — this silent-failure
+  mode is the easiest thing to miss on this change.
+- Wire/presentation split (lowercase canonical + capitalised at the Form
+  boundary) is idiomatic for this codebase and keeps the type system clean.
+- Brand pattern preserved (`ValidatedRequester` updated rather than
+  bypassed) — consistent with `docs/plan/issues/49_brand_validated_types.md`.
+- Implementation steps are specific, file-scoped, and include code snippets
+  where the change is non-trivial.
+
+### Gaps Identified
+
+1. **`tests/e2e/request.spec.ts` preview-stub fixture needs a radio
+   interaction, not just an assertion.**
+   - **Impact:** Low — the test currently doesn't touch the dedication
+     field at all, so "extending" it is new interaction, not an edit.
+   - **Recommendation:** Explicitly state in Step 6 that the test must
+     locate the `Karaoke` radio by role (`getByRole('radio', { name:
+     'Karaoke' })`) and click it before `requestButton.click()`. The
+     current plan wording ("extend the request-route assertion") could be
+     read as assertion-only.
+
+2. **`src/lib/googleForm.ts` type surface.**
+   - **Impact:** Low — this file imports `Requester` from `shared/types`
+     and passes it through untouched, so no code change is needed. But the
+     plan's "Files Modified" list omits it, which is correct, and nothing
+     in the file needs editing. Worth confirming that TypeScript will
+     catch any lingering `dedication` usages at compile time.
+   - **Recommendation:** During implementation, run `npx tsc --noEmit`
+     after the `shared/types.ts` change to flush any other
+     `requester.dedication` references (none expected in non-test code
+     based on grep, but the compile-time guard is free insurance).
+
+3. **README scope.**
+   - **Impact:** Low — the plan lists `README.md` with a single line
+     change, but the README's "Google Form Setup" section has several
+     adjacent lines (43–45) describing the dedication field and the
+     overall form creation flow. The surrounding copy still reads
+     naturally after the one-line edit, so this is fine, but worth a
+     sanity re-read during implementation.
+   - **Recommendation:** When editing, also confirm the "Add
+     visitor-facing fields" bullet list flows correctly with the new
+     wording.
+
+### Edge Cases Not Covered
+
+1. **Form submission with missing `requestType` from a custom client.**
+   - **Current Plan:** Validation rejects with 400 `requester.requestType
+     is required` (covered in Step 2).
+   - **Recommendation:** No change — explicit test case already required
+     in Step 2 ("rejects missing `requestType`"). Covered.
+
+2. **Old Google Sheet rows re-triggered manually.**
+   - **Current Plan:** Not addressed.
+   - **Recommendation:** Non-issue. `onFormSubmit` only fires on new
+     submissions; Apps Script doesn't backfill. Worth a one-line comment
+     in the commit message but no code change needed. (If a developer
+     manually runs `onFormSubmit` against a historical `namedValues`
+     payload during testing, the key lookup will return `—`, which is the
+     intended fallback in `format.ts`.)
+
+3. **Capitalisation mismatch between Form option labels and code.**
+   - **Current Plan:** Netlify function maps `song → Song` / `karaoke →
+     Karaoke` before hitting the Form (Step 3).
+   - **Recommendation:** Add an inline comment in `request.ts` next to the
+     map noting **exact-match requirement** with Form option labels.
+     Silent failure mode: if someone renames the Form option to
+     "Song request" but not the code map, Google Forms will reject the
+     submission with a 400 and the guest sees the 502 from our function
+     with no clue what happened. A defensive integration test isn't
+     worth it, but a comment is.
+
+### Alternatives Reconsidered
+
+1. **`<select>` dropdown instead of radios.**
+   - **Pros:** Saves vertical space; one-click-less code.
+   - **Cons:** Harder to scan at a glance on mobile; radios surface both
+     options simultaneously, which is better for a two-option choice
+     (UX best practice is radios for ≤3 options).
+   - **Verdict:** Plan's choice (radios) is correct.
+
+2. **Keep `dedication` field name internally; only change the UI.**
+   - **Pros:** No type-level churn; formFields.ts key stays the same.
+   - **Cons:** Every future reader has to mentally translate; the field
+     no longer means what it says; tests describe behaviour incorrectly.
+   - **Verdict:** Plan's rename is correct. The short-term churn pays for
+     itself on the first "what does this do?" moment.
+
+3. **Add a new Form field for request type, leave dedication in place.**
+   - **Pros:** Non-breaking; dedication remains available if the DJ ever
+     wants it.
+   - **Cons:** Two fields for what should be one classification; keeps a
+     field the issue explicitly wants removed; queue surface bloats.
+   - **Verdict:** Correctly rejected in the plan's "Alternatives" section.
+
+### Risks and Concerns
+
+1. **`.input-label` CSS reuse on `<fieldset>`.**
+   - **Likelihood:** Medium — the existing class targets a `<label>`
+     wrapping a single `<input>`, and is likely styled with flex/block
+     layout assumptions (e.g. label above input). A `<fieldset>` with
+     `<legend>` + two radios has a different internal structure.
+   - **Impact:** Low — worst case is a visual regression that's easy to
+     spot in dev and fix with a one-line CSS rule.
+   - **Mitigation:** During implementation, visually verify the radio
+     group in the dev server. If `.input-label` doesn't lay out
+     correctly on `<fieldset>`, add a scoped class (e.g. `.request-type`)
+     with minimal radio-group styling (`display: flex; gap: 0.75rem;`
+     for horizontal options) rather than forcing the existing class.
+
+2. **Playwright E2E test timing.**
+   - **Likelihood:** Low — the existing test uses `page.waitForTimeout`
+     for debounced search, not for form interactions.
+   - **Impact:** Low — radios are synchronous.
+   - **Mitigation:** None needed.
+
+3. **Google Form manual step is out-of-band.**
+   - **Likelihood:** High — code lands before the form is edited.
+   - **Impact:** Medium — if the form still has the short-answer
+     `Dedication / Message` question when the new code ships, submissions
+     from the UI will send `Song` to a short-answer field (still stored,
+     but the Doc `Request type` lookup returns `—` because the form
+     question is still titled "Dedication / Message"). The next event
+     queue looks broken until someone runs the manual form edit.
+   - **Mitigation:** The plan's README note is sufficient, but the PR
+     description should reiterate the manual step as a release checklist
+     item. The `Notes → Best Practices` section of the plan already
+     covers this; tighten the wording at PR time.
+
+### Required Changes
+
+**Changes that must be made during implementation (no plan revision
+required):**
+
+- [ ] In Step 3 (`netlify/functions/request.ts`), add an inline comment
+      above the `REQUEST_TYPE_LABEL` map noting it must match Google Form
+      option labels exactly.
+- [ ] In Step 6 (`tests/e2e/request.spec.ts`), make the new radio
+      interaction explicit (`getByRole('radio', { name: 'Karaoke'
+      }).check()` or `.click()`), not just an outgoing-body assertion.
+- [ ] During Step 4 (`src/App.tsx`), if `.input-label` does not lay out
+      cleanly on `<fieldset>`, add a scoped `.request-type` CSS rule
+      rather than forcing the existing class.
+- [ ] After the `shared/types.ts` rename, run `npx tsc --noEmit` to
+      flush any stray `requester.dedication` references before touching
+      test files (cheap compile-time sweep).
+
+### Optional Improvements
+
+- [ ] Add a `// TODO(#93): remove manual form-edit step once infra can
+      manage Forms` comment in `README.md` near the new instruction.
+  (Not blocking; purely documentation hygiene.)
+- [ ] Export the `REQUEST_TYPE_LABEL` map from a shared module so
+      `_validate.ts` and `request.ts` agree on the allowed set via a
+      single source of truth. (Probably over-engineering for two values;
+      mention it in the commit body as a deferred refactor.)
+
+### Verification Checklist
+
+- [x] Solution addresses root cause identified in GitHub issue
+- [x] All acceptance criteria from issue are covered (see mapping below)
+- [x] Implementation steps are specific and actionable
+- [x] File paths and code references are accurate (verified against HEAD)
+- [x] Security implications considered (enum validation rejects untrusted
+      strings; no new injection surface)
+- [x] Performance impact assessed (no change — one more compare in the
+      validator)
+- [x] Test strategy covers critical paths and edge cases
+- [x] Documentation updates planned (README + CLAUDE.md)
+- [x] Related issues/dependencies identified (none blocking)
+- [x] Breaking changes documented (internal rename;
+      `Requester.dedication` removed from wire contract — acceptable, no
+      external API consumers)
+
+**Acceptance-criteria mapping (issue → plan):**
+
+| Issue AC                                           | Plan coverage                                    |
+| -------------------------------------------------- | ------------------------------------------------ |
+| Song/Karaoke selector in modal (not free-text)     | Step 4                                           |
+| Submits successfully, Doc shows chosen value       | Steps 3 + 5                                      |
+| Unit tests for valid values + rejection            | Steps 2 + 5 (`_validate.test.ts`, `format.test`) |
+| Playwright E2E exercises the selector              | Step 6                                           |
+| README and CLAUDE.md reflect new field             | Step 7                                           |
+
+**Status update:** `Under Review` → `Reviewed (Approved)`
