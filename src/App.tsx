@@ -4,7 +4,7 @@ import { useRequesterName } from './hooks/useRequesterName';
 import { RequestError, submitSongRequest } from './lib/googleForm';
 import PreviewButton, { type PreviewState } from './components/PreviewButton';
 import type { Song } from '../shared/types';
-import squirrelsImage from '../squirrels.jpeg';
+import squirrelsImage from './assets/squirrel-mark.svg';
 
 const SUBMIT_COOLDOWN_MS = 3000;
 const PREVIEW_LOADING_TIMEOUT_MS = 8000;
@@ -225,7 +225,7 @@ function App() {
       <header>
         <img
           src={squirrelsImage}
-          alt="Rhiwbina Squirrels crest"
+          alt="Rhiwbina Squirrels logo"
           className="hero-image"
           width={160}
           height={160}
